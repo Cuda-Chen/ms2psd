@@ -21,7 +21,7 @@ main (int argc, char **argv)
   //double complex *freqResponse;
   float complex *filterResult;
   float complex *freqResponse;
-  int nfft = 2000;
+  int nfft = 2048;
   float lowcut, highcut; /* low and high cutoff frequencies */
   int order;
   int passes;
