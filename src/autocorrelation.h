@@ -6,6 +6,6 @@
 #include "datatype.h"
 
 void autocorrelation_float (data_t *data, uint64_t totalSamples,
-                            data_t *autoCorrelationResult);
+                            data_t **autoCorrelationResult);
 
 #endif

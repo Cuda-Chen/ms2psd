@@ -4,7 +4,7 @@
 #include "output2Octave.h"
 
 void
-output2Octave (const char outputfile, int nfft, float *psd)
+output2Octave (const char *outputfile, int nfft, float *psd)
 {
   FILE *fid = fopen (outputfile, "w");
   fprintf (fid, "%% %s : auto-generated file\n", outputfile);

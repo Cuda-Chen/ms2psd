@@ -17,6 +17,8 @@ autocorrelation_float (data_t *data, uint64_t totalSamples, data_t *autoCorrelat
   unsigned int delay       = sequenceLen;
   int normalizeByEnergy    = 0; // normalize output by E{x^2}?
 
+  (*autoCorrelationResult) = (data_t *)malloc (sizeof (data_t) * totalSamples);
+
   // create autocorr object
   autocorr_rrrf q = autocorr_rrrf_create (windowSize, delay);
 
