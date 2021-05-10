@@ -13,7 +13,7 @@ spgram (float complex *data, uint64_t totalSamples, int nfft, float *psd)
 
   // create our spectral periodogram
   spgramcf q = spgramcf_create (nfft,
-                                LIQUID_WINDOW_RCOSTAPER,
+                                windowType,
                                 windowSize,
                                 delay);
 #ifdef DEBUG

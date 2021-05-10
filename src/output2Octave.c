@@ -14,6 +14,7 @@ output2Octave (const char *outputfile, int nfft, float *psd)
   fprintf (fid, "f    = [0:(nfft-1)]/nfft - 0.5;\n");
   fprintf (fid, "psd  = zeros(1,nfft);\n");
 
+  int i;
   for (i = 0; i < nfft; i++)
     fprintf (fid, "psd(%6u) = %12.4e;\n", i + 1, psd[i]);
 

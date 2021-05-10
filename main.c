@@ -37,12 +37,12 @@ main (int argc, char **argv)
   data_t *autocorr;
   float complex *filterResult;
   float complex *freqResponse;
-  int nfft = 2048;
+  int nfft = 2000;
   float lowcut, highcut; /* low and high cutoff frequencies */
   int order;
   int passes;
   char *outputFile;
-  const char *outputScript = "filter_result.m";
+  const char *outputScript = "psd_result.m";
   float *psd;
   int rv;
 
@@ -72,7 +72,8 @@ main (int argc, char **argv)
   }
 
   /* Apply auto-correlation */
-  autocorrelation_float (data, totalSamples, &autocorr);
+  autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples);
+  autocorrelation_float (data, totalSamples, autocorr);
   if (autocorr == NULL)
   {
     printf ("Auto-correlation failed\n");

@@ -1,7 +1,7 @@
 DEBUG = 1
 
 CC = gcc
-EXEC = ms2filter
+EXEC = ms2psd
 #COMMON = -I./libmseed/ -Iinclude/ -Isrc/ -I/usr/local/include/liquid
 COMMON = -I/usr/local/ -Iinclude/ -Isrc/ -I/usr/local/include/liquid
 CFLAGS =  -Wall
@@ -10,7 +10,7 @@ CFLAGS =  -Wall
 LDFLAGS = -L/usr/local
 LDLIBS = -lmseed -lm -lliquid
 
-OBJS = main.o src/parse_miniSEED.o src/bandpass_filter.o src/write2script.o src/write2file.o src/write2mseed.o
+OBJS = main.o src/parse_miniSEED.o src/bandpass_filter.o src/output2Octave.o src/autocorrelation.o src/spgram.o
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g -DDEBUG=1
