@@ -17,6 +17,9 @@ int main() {
     
     int width = (int) floor(alpha * (n - 1) / 2.0);
 
+    // Calculate consine (Tukey) window
+    // Caculation reference from here:
+    // https://github.com/scipy/scipy/blob/v1.6.3/scipy/signal/windows/windows.py#L795-L875
     int i;
     for(i = 0; i < width + 1; i++)
         w[i] = 0.5 * (1 + cos(PI * (-1 + 2.0 * i / alpha / (n - 1))));
