@@ -5,7 +5,9 @@
 #include "autocorrelation.h"
 #include "bandpass_filter.h"
 #include "common.h"
+#include "cosine_taper.h"
 #include "datatype.h"
+#include "fft.h"
 #include "output2Octave.h"
 #include "parse_miniSEED.h"
 #include "spgram.h"
@@ -104,7 +106,21 @@ main (int argc, char **argv)
   /* Save the filtered result to MATLAB script */
   output2Octave (outputScript, nfft, psd);
 
-  /* Free alllocated objects */
+  /* Method #2 */
+  /* First taper the signal with 5%-cosine-window */
+  float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
+  cosineTaper (data, (int)totalSamples, (float)0.05, taperedSignal);
+  /* Then execute FFT */
+  FILE *fftResult = fopen ("fft_result.txt", "w");
+  if (fftResult == NULL)
+  {
+    printf ("Error opening!");
+    return -1;
+  }
+  fftToFileHalf ((double *)taperedSignal, totalSamples, sampleRate, fftResult);
+  fclose (fftResult);
+
+  /* Free allocated objects */
   free (data);
   free (autocorr);
   free (filterResult);

@@ -54,3 +54,6 @@ dkms.conf
 
 # output Matlab script
 *.m
+
+# output waveform
+*.txt
