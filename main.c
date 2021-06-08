@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+//#include <assert.h>
+
+#include "fftw3.h"
 
 #include "autocorrelation.h"
 #include "bandpass_filter.h"
@@ -109,15 +112,28 @@ main (int argc, char **argv)
   /* Method #2 */
   /* First taper the signal with 5%-cosine-window */
   float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
-  cosineTaper (data, (int)totalSamples, (float)0.05, taperedSignal);
+  cosineTaper (data, (int)totalSamples, 0.05, taperedSignal);
   /* Then execute FFT */
+  double *tapered = (double *)malloc (sizeof (double) * totalSamples);
+  for (int i = 0; i < totalSamples; i++)
+  {
+    tapered[i] = (double)taperedSignal[i];
+    //assert(taperedSignal[i] == (float)tapered[i]);
+  }
   FILE *fftResult = fopen ("fft_result.txt", "w");
   if (fftResult == NULL)
   {
     printf ("Error opening!");
     return -1;
   }
-  fftToFileHalf ((double *)taperedSignal, totalSamples, sampleRate, fftResult);
+  fftToFileHalf (tapered, totalSamples, sampleRate, fftResult);
+  /*fftw_complex *in = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
+  fftw_complex *out = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
+  fftw_complex *ref = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
+  testFFT(tapered, in, out, ref, totalSamples);
+  free(in);
+  free(out);
+  free(ref);*/
   fclose (fftResult);
 
   /* Free allocated objects */
@@ -126,6 +142,7 @@ main (int argc, char **argv)
   free (filterResult);
   free (freqResponse);
   free (psd);
+  free (taperedSignal);
 
   return 0;
 }
