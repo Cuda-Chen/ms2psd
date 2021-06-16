@@ -5,7 +5,7 @@
 
 #include "fftw3.h"
 
-#include "autocorrelation.h"
+#include "autocorr.h"
 #include "bandpass_filter.h"
 #include "common.h"
 #include "cosine_taper.h"
@@ -77,8 +77,15 @@ main (int argc, char **argv)
   }
 
   /* Apply auto-correlation */
-  autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples);
+  /*autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples);
   autocorrelation_float (data, totalSamples, autocorr);
+  if (autocorr == NULL)
+  {
+    printf ("Auto-correlation failed\n");
+    return -1;
+  }*/
+  autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples * 2 - 1);
+  autocorr_float (data, totalSamples, autocorr);
   if (autocorr == NULL)
   {
     printf ("Auto-correlation failed\n");
@@ -86,9 +93,9 @@ main (int argc, char **argv)
   }
 
   /* Filter the data with band pass filter */
-  filterResult = (float complex *)malloc (sizeof (float complex) * totalSamples);
+  filterResult = (float complex *)malloc (sizeof (float complex) * totalSamples * 2 - 1);
   freqResponse = (float complex *)malloc (sizeof (float complex) * nfft);
-  bandpass_filter_float (autocorr, sampleRate, totalSamples, nfft,
+  bandpass_filter_float (autocorr, sampleRate, totalSamples * 2 - 1, nfft,
                          lowcut, highcut, order, passes,
                          filterResult, freqResponse);
   if (filterResult == NULL || freqResponse == NULL)
@@ -99,7 +106,7 @@ main (int argc, char **argv)
 
   /* Calculate spectral periodogram */
   psd = (float *)malloc (sizeof (float) * nfft);
-  spgram (filterResult, totalSamples, nfft, psd);
+  spgram (filterResult, totalSamples * 2 - 1, nfft, psd);
   if (psd == NULL)
   {
     printf ("spectral periodogram failed\n");

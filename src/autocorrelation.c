@@ -13,7 +13,7 @@ autocorrelation_float (data_t *data, uint64_t totalSamples, data_t *autoCorrelat
 {
   // options
   unsigned int sequenceLen = (unsigned int)totalSamples; // may overflow in the future
-  unsigned int windowSize  = 64;
+  unsigned int windowSize  = sequenceLen;
   unsigned int delay       = 8;
   int normalizeByEnergy    = 0; // normalize output by E{x^2}?
 
@@ -36,6 +36,13 @@ autocorrelation_float (data_t *data, uint64_t totalSamples, data_t *autoCorrelat
       autoCorrelationResult[i] /= autocorr_rrrf_get_energy (q);
     }
   }
+
+  FILE *temp = fopen ("autocorr_result.txt", "w");
+  for (i = 0; i < totalSamples; i++)
+  {
+    fprintf (temp, "%d %f\n", i, autoCorrelationResult[i]);
+  }
+  fclose (temp);
 
   autocorr_rrrf_destroy (q);
 }

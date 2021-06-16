@@ -10,7 +10,7 @@ CFLAGS =  -Wall
 LDFLAGS = -L/usr/local
 LDLIBS = -lmseed -lm -lliquid -lfftw3
 
-OBJS = main.o src/parse_miniSEED.o src/bandpass_filter.o src/output2Octave.o src/autocorrelation.o src/spgram.o src/fft.o src/cosine_taper.o
+OBJS = main.o src/parse_miniSEED.o src/bandpass_filter.o src/output2Octave.o src/autocorrelation.o src/spgram.o src/fft.o src/cosine_taper.o src/autocorr.o
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g -DDEBUG=1
