@@ -14,7 +14,7 @@ autocorrelation_float (data_t *data, uint64_t totalSamples, data_t *autoCorrelat
   // options
   unsigned int sequenceLen = (unsigned int)totalSamples; // may overflow in the future
   unsigned int windowSize  = 64;
-  unsigned int delay       = sequenceLen;
+  unsigned int delay       = 8;
   int normalizeByEnergy    = 0; // normalize output by E{x^2}?
 
   // create autocorr object
