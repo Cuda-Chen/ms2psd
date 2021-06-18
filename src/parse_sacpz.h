@@ -4,6 +4,8 @@
 #include <complex.h>
 
 int parse_sacpz (const char *sacpzfile, double complex **poles,
-                 double complex **zeros, double *constant);
+                 int *npoles,
+                 double complex **zeros,
+                 int *nzeros, double *constant);
 
 #endif
