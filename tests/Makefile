@@ -1,7 +1,7 @@
 DEBUG = 1
 CC = gcc
 CFLAGS = 
-COMMON += -I../src/
+COMMON += -I../src/ -I../include/
 
 LDFLAGS = -L/usr/local
 LDLIBS = -lmseed -lm -lliquid -lfftw3 
