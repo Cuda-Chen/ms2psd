@@ -84,6 +84,7 @@ main (int argc, char **argv)
     printf ("Auto-correlation failed\n");
     return -1;
   }*/
+#if 0
   autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples * 2 - 1);
   autocorr_float (data, totalSamples, autocorr);
   if (autocorr == NULL)
@@ -115,6 +116,7 @@ main (int argc, char **argv)
 
   /* Save the filtered result to MATLAB script */
   output2Octave (outputScript, nfft, psd);
+#endif
 
   /* Method #2 */
   /* First taper the signal with 5%-cosine-window */
@@ -125,7 +127,6 @@ main (int argc, char **argv)
   for (int i = 0; i < totalSamples; i++)
   {
     tapered[i] = (double)taperedSignal[i];
-    //assert(taperedSignal[i] == (float)tapered[i]);
   }
   FILE *fftResult = fopen ("fft_result.txt", "w");
   if (fftResult == NULL)
@@ -134,22 +135,21 @@ main (int argc, char **argv)
     return -1;
   }
   fftToFileHalf (tapered, totalSamples, sampleRate, fftResult);
-  /*fftw_complex *in = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
-  fftw_complex *out = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
-  fftw_complex *ref = (fftw_complex *) malloc (sizeof(fftw_complex) * totalSamples);
-  testFFT(tapered, in, out, ref, totalSamples);
-  free(in);
-  free(out);
-  free(ref);*/
+  double complex *fftout;
+  fft (tapered, totalSamples, &fftout);
+
   fclose (fftResult);
 
   /* Free allocated objects */
   free (data);
+#if 0
   free (autocorr);
   free (filterResult);
   free (freqResponse);
   free (psd);
+#endif
   free (taperedSignal);
+  free (fftout);
 
   return 0;
 }

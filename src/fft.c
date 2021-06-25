@@ -1,3 +1,4 @@
+#include <complex.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -25,6 +26,40 @@ range (double *array, double min, double max, size_t n)
 }
 
 void
+fft (double *data, uint64_t dataSamples, double complex **output)
+{
+  fftw_plan fft;
+  uint64_t i;
+  /* allocate memory */
+  fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  *output           = (double complex *)malloc (sizeof (double complex) * dataSamples);
+
+  /* prepare input data */
+  for (i = 0; i < dataSamples; i++)
+  {
+    /*in[i][0] = data[i];
+    in[i][1] = 0;*/
+    in[i] = data[i] + 0.0 * I;
+  }
+
+  /* Fourier transform and save result to `out` */
+  fft = fftw_plan_dft_1d (dataSamples, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+  fftw_execute (fft);
+  fftw_destroy_plan (fft);
+
+  /* prepare output data */
+  for (i = 0; i < dataSamples; i++)
+  {
+    *(*(output) + i) = out[i];
+  }
+
+  /* free allocated memory */
+  fftw_free (in);
+  fftw_free (out);
+}
+
+void
 fftToFileHalf (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
 {
   fftw_plan fft;
@@ -39,8 +74,7 @@ fftToFileHalf (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr
   /* prepare input data */
   for (i = 0; i < dataSamples; i++)
   {
-    in[i][0] = data[i];
-    in[i][1] = 0;
+    in[i] = data[i] + 0.0 * I;
   }
 
   /* prepare frequency index and data */
@@ -52,7 +86,7 @@ fftToFileHalf (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr
   fftw_destroy_plan (fft);
   for (i = 0; i < mid; i++)
   {
-    fprintf (fptr, "%lf %lf %lf\n", freq[i], out[i][0], out[i][1]);
+    fprintf (fptr, "%lf %lf %lf\n", freq[i], creal (out[i]), cimag (out[i]));
   }
 
   /* free allocated memory */
@@ -75,8 +109,7 @@ fftToFile (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
   /* prepare input data */
   for (i = 0; i < dataSamples; i++)
   {
-    in[i][0] = data[i];
-    in[i][1] = 0;
+    in[i] = data[i] + 0.0 * I;
   }
 
   /* prepare frequency index and data */
@@ -89,7 +122,7 @@ fftToFile (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
 
   for (i = 0; i < dataSamples; i++)
   {
-    fprintf (fptr, "%lf %lf %lf\n", freq[i], out[i][0], out[i][1]);
+    fprintf (fptr, "%lf %lf %lf\n", freq[i], creal (out[i]), cimag (out[i]));
   }
 
   /* free allocated memory */
@@ -115,8 +148,7 @@ testFFT (double *data, fftw_complex *in, fftw_complex *out,
   /* prepare input data */
   for (i = 0; i < totalSamples; i++)
   {
-    in[i][0] = data[i];
-    in[i][1] = 0;
+    in[i] = data[i] + 0.0 * I;
   }
 
   /* Fourier transform and save result to `out` */
@@ -131,13 +163,12 @@ testFFT (double *data, fftw_complex *in, fftw_complex *out,
   /* normalize */
   for (i = 0; i < totalSamples; i++)
   {
-    ref[i][0] *= 1. / totalSamples;
-    ref[i][1] *= 1. / totalSamples;
+    ref[i] = creal (ref[i]) * 1. / totalSamples + cimag (ref[i]) * 1. / totalSamples * I;
   }
   for (i = 0; i < totalSamples; i++)
   {
     printf ("recover: %" PRId64 " %+9.5f %+9.5f I v.s. %+9.5f %+9.5f I\n",
-            i, in[i][0], in[i][1], ref[i][0], ref[i][1]);
+            i, creal (in[i]), cimag (in[i]), creal (ref[i]), cimag (ref[i]));
   }
   fftw_destroy_plan (ifft);
 
