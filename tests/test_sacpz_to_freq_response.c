@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "get_freq_response.h"
+#include "freq_response.h"
 #include "parse_sacpz.h"
 
 int
@@ -19,7 +19,7 @@ main ()
   assert (result == 0);
 
   double *freq;
-  double *freq_response;
+  double complex *freq_response;
   double sampling_rate = 100.0f;
   int data_samples     = 1024;
   result               = get_freq_response (poles, npoles, zeros, nzeros,
@@ -29,7 +29,7 @@ main ()
   int i;
   for (i = 0; i < data_samples; i++)
   {
-    printf ("%lf %e\n", freq[i], freq_response[i]);
+    printf ("%lf %e\n", freq[i], cabs (freq_response[i]));
   }
 
   /* Free allocated objects */

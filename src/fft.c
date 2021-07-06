@@ -60,6 +60,42 @@ fft (double *data, uint64_t dataSamples, double complex **output)
 }
 
 void
+ifft (double complex *data, uint64_t dataSamples, double **output)
+{
+  fftw_plan ifft;
+  uint64_t i;
+  /* allocate memory */
+  fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  *output           = (double *)malloc (sizeof (double) * dataSamples);
+
+  /* prepare input data */
+  for (i = 0; i < dataSamples; i++)
+  {
+    in[i] = data[i];
+  }
+
+  /* Fourier transform and save result to `out` */
+  ifft = fftw_plan_dft_1d (dataSamples, in, out, FFTW_BACKWARD, FFTW_ESTIMATE);
+  fftw_execute (ifft);
+  fftw_destroy_plan (ifft);
+
+  /* prepare output data */
+  for (i = 0; i < dataSamples; i++)
+  {
+    *(*(output) + i) = creal (out[i]);
+  }
+
+  /* Normalize output as FFTW does not do normalization when running iFFT */
+  for (i = 0; i < dataSamples; i++)
+    *(*(output) + i) *= 1. / dataSamples;
+
+  /* free allocated memory */
+  fftw_free (in);
+  fftw_free (out);
+}
+
+void
 fftToFileHalf (double *data, uint64_t dataSamples, double sampleRate, FILE *fptr)
 {
   fftw_plan fft;

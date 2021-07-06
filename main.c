@@ -10,10 +10,13 @@
 #include "common.h"
 #include "cosine_taper.h"
 #include "datatype.h"
+#include "detrend.h"
 #include "fft.h"
 #include "output2Octave.h"
 #include "parse_miniSEED.h"
 #include "spgram.h"
+#include "parse_sacpz.h"
+#include "freq_response.h"
 
 static void
 usage ()
@@ -39,10 +42,12 @@ main (int argc, char **argv)
   data_t *data    = NULL;
   double sampleRate;
   uint64_t totalSamples;
+#if 0
   data_t *autocorr;
   float complex *filterResult;
   float complex *freqResponse;
   int nfft = 2000;
+#endif
   float lowcut, highcut; /* low and high cutoff frequencies */
   int order;
   int passes;
@@ -119,15 +124,54 @@ main (int argc, char **argv)
 #endif
 
   /* Method #2 */
+  FILE *dataout = fopen ("dataout.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (dataout, "%f%c", data[i], " \n"[i != totalSamples - 1]);
+  }
+  fclose (dataout);
+  /* Detrend */
+  data_t *detrended;
+  detrend (data, (int)totalSamples, &detrended);
+  FILE *detrendout = fopen ("detrendout.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (detrendout, "%f%c", detrended[i], " \n"[i != totalSamples - 1]);
+  }
+  fclose (detrendout);
   /* First taper the signal with 5%-cosine-window */
   float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
-  cosineTaper (data, (int)totalSamples, 0.05, taperedSignal);
+  cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
   /* Then execute FFT */
   double *tapered = (double *)malloc (sizeof (double) * totalSamples);
   for (int i = 0; i < totalSamples; i++)
   {
     tapered[i] = (double)taperedSignal[i];
   }
+  double complex *fftResult;
+  fft(tapered, totalSamples, &fftResult);
+  /* Apply instrument response removal */
+  /* Read SACPZ file */
+  const char *sacpzfile = "foo";
+  double complex *poles, *zeros;
+  double npoles, nzeros;
+  double constant;
+  parse_sacpz(sacpzfile, 
+              &poles, &npoles,
+              &zeros, &nzeros,
+              &constant);
+  /* Get frequency response */
+  double *freq;
+  double complex *freqResponse;
+  int flag = 0;
+  get_freq_response(poles, npoles,
+                    zeros, nzeros,
+                    constant, sampleRate, totalSamples,
+                    &freq, &freqResponse, flag);
+  remove_response(fftResult, freqResponse, totalSamples);
+  /* Apply PSD */
+
+#if 0
   FILE *fftResult = fopen ("fft_result.txt", "w");
   if (fftResult == NULL)
   {
@@ -135,10 +179,19 @@ main (int argc, char **argv)
     return -1;
   }
   fftToFileHalf (tapered, totalSamples, sampleRate, fftResult);
+  fclose (fftResult);
+
   double complex *fftout;
   fft (tapered, totalSamples, &fftout);
-
-  fclose (fftResult);
+  double *amp, *phase;
+  spectra (fftout, totalSamples, &amp, &phase);
+  FILE *fftOut = fopen ("fft_out.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (fftOut, "%lf %lf%c", amp[i], phase[i], " \n"[i != totalSamples - 1]);
+  }
+  fclose (fftOut);
+#endif
 
   /* Free allocated objects */
   free (data);
@@ -148,8 +201,19 @@ main (int argc, char **argv)
   free (freqResponse);
   free (psd);
 #endif
+  free (detrended);
   free (taperedSignal);
+  free( tapered);
+  free(fftResult);
+  free(poles);
+  free(zeros);
+  free(freq);
+  free(freqResponse);
+#if 0
   free (fftout);
+  free (amp);
+  free (phase);
+#endif
 
   return 0;
 }

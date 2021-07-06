@@ -25,12 +25,17 @@ int
 get_freq_response (double complex *poles, int npoles,
                    double complex *zeros, int nzeros,
                    double constant, double sampling_rate, int data_samples,
-                   double **freq, double **freq_response,
+                   double **freq, double complex **freq_response,
                    int flag)
 {
   double min = 0.0f;
   double max = sampling_rate;
   int i;
+  /* Check user need displacement, velocity, or acceleration response */
+  if (flag == 1)
+    nzeros -= 1;
+  else if (flag == 2)
+    nzeros -= 2;
 
   /* Prepare frequency index and data */
   *freq = (double *)malloc (sizeof (double) * data_samples);
@@ -42,7 +47,7 @@ get_freq_response (double complex *poles, int npoles,
   range (*freq, min, max, data_samples);
 
   /* Allocate frequency response array */
-  *freq_response = (double *)malloc (sizeof (double) * data_samples);
+  *freq_response = (double complex *)malloc (sizeof (double complex) * data_samples);
   if (*freq_response == NULL)
   {
     fprintf (stderr, "Allocate frequency response failed\n");
@@ -65,10 +70,21 @@ get_freq_response (double complex *poles, int npoles,
     for (j = 0; j < npoles; j++)
       denominator = denominator * (i_omega - poles[j]);
 
-    double complex amp = numerator / denominator;
+    (*freq_response)[i] = numerator / denominator;
     /* phase */
     /* amplitude */
-    (*freq_response)[i] = cabs (amp);
+  }
+
+  return 0;
+}
+
+int
+remove_response (double complex *data, double complex *freq_response, int data_samples)
+{
+  int i;
+  for (i = 0; i < data_samples; i++)
+  {
+    data[i] /= freq_response[i];
   }
 
   return 0;
