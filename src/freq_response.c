@@ -10,6 +10,7 @@
  * Output: array `array` filled with values
  * Reference: https://gist.github.com/mortenpi/f20a93c8ed3ee7785e65
  */
+#if 0
 static void
 range (double *array, double min, double max, size_t n)
 {
@@ -19,6 +20,17 @@ range (double *array, double min, double max, size_t n)
   {
     array[i] = min + i * delta;
   }
+}
+#endif
+static void
+range (double *array, double sampleRate, int totalSamples)
+{
+  double delta         = 1. / sampleRate;
+  double totalDuration = delta * totalSamples;
+  int i;
+
+  for (i = 0; i < totalSamples; i++)
+    array[i] = i / totalDuration;
 }
 
 int
@@ -30,6 +42,7 @@ get_freq_response (double complex *poles, int npoles,
 {
   double min = 0.0f;
   double max = sampling_rate;
+  double k   = constant;
   int i;
   /* Check user need displacement, velocity, or acceleration response */
   if (flag == 1)
@@ -44,7 +57,17 @@ get_freq_response (double complex *poles, int npoles,
     fprintf (stderr, "Allocate frequency index failed\n");
     return -1;
   }
-  range (*freq, min, max, data_samples);
+  //range (*freq, sampling_rate, data_samples);
+  double delta         = 1. / sampling_rate;
+  double totalDuration = delta * data_samples;
+  for (i = 0; i < data_samples / 2 + 1; i++)
+  {
+    (*freq)[i] = i / totalDuration;
+  }
+  for (i = data_samples / 2 + 1; i < data_samples; i++)
+  {
+    (*freq)[i] = -(data_samples - i) / totalDuration;
+  }
 
   /* Allocate frequency response array */
   *freq_response = (double complex *)malloc (sizeof (double complex) * data_samples);
@@ -70,7 +93,7 @@ get_freq_response (double complex *poles, int npoles,
     for (j = 0; j < npoles; j++)
       denominator = denominator * (i_omega - poles[j]);
 
-    (*freq_response)[i] = numerator / denominator;
+    (*freq_response)[i] = k * numerator / denominator;
     /* phase */
     /* amplitude */
   }
@@ -82,9 +105,18 @@ int
 remove_response (double complex *data, double complex *freq_response, int data_samples)
 {
   int i;
-  for (i = 0; i < data_samples; i++)
+  data[0] = 0.0f + 0.0f * I;
+  for (i = 1; i < data_samples; i++)
   {
     data[i] /= freq_response[i];
+
+    /* Input data are real so F(N - i) = F(i) */
+#if 0
+    if(i != data_samples - i) {
+        data[data_samples - i] /= freq_response[i];
+        //data[data_samples - i] = conj(data[data_samples - i]);
+    }
+#endif
   }
 
   return 0;

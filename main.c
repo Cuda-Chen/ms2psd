@@ -10,13 +10,25 @@
 #include "common.h"
 #include "cosine_taper.h"
 #include "datatype.h"
+//#include "standard_deviation.h"
 #include "detrend.h"
 #include "fft.h"
+#include "freq_response.h"
 #include "output2Octave.h"
 #include "parse_miniSEED.h"
-#include "spgram.h"
 #include "parse_sacpz.h"
-#include "freq_response.h"
+#include "spgram.h"
+
+static void
+range (double *array, double min, double max, size_t n)
+{
+  double delta = (max - min) / (double)(n - 1);
+  size_t i;
+  for (i = 0; i < n; i++)
+  {
+    array[i] = min + i * delta;
+  }
+}
 
 static void
 usage ()
@@ -123,6 +135,8 @@ main (int argc, char **argv)
   output2Octave (outputScript, nfft, psd);
 #endif
 
+  //totalSamples -= 1;
+
   /* Method #2 */
   FILE *dataout = fopen ("dataout.txt", "w");
   for (int i = 0; i < totalSamples; i++)
@@ -130,6 +144,7 @@ main (int argc, char **argv)
     fprintf (dataout, "%f%c", data[i], " \n"[i != totalSamples - 1]);
   }
   fclose (dataout);
+  /* Demean */
   /* Detrend */
   data_t *detrended;
   detrend (data, (int)totalSamples, &detrended);
@@ -142,34 +157,76 @@ main (int argc, char **argv)
   /* First taper the signal with 5%-cosine-window */
   float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
   cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
-  /* Then execute FFT */
-  double *tapered = (double *)malloc (sizeof (double) * totalSamples);
+  double *tapered   = (double *)malloc (sizeof (double) * totalSamples);
+  FILE *taperResult = fopen ("taperout.txt", "w");
   for (int i = 0; i < totalSamples; i++)
   {
     tapered[i] = (double)taperedSignal[i];
+    fprintf (taperResult, "%lf\n", tapered[i]);
   }
+  fclose (taperResult);
+  /* Then execute FFT */
   double complex *fftResult;
-  fft(tapered, totalSamples, &fftResult);
+  fft (tapered, totalSamples, &fftResult);
+
+  double delta         = 1. / sampleRate;
+  double totalDuration = delta * totalSamples;
+
+  FILE *fft_out = fopen ("fft_result.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    double frequency = i / totalDuration;
+    fprintf (fft_out, "%lf %lf %lf\n", frequency, creal (fftResult[i]), cimag (fftResult[i]));
+  }
+  fclose (fft_out);
+  //printf("%lf %lf %lf\n", creal(fftResult[0]), cimag(fftResult[0]), tapered[0]);
   /* Apply instrument response removal */
   /* Read SACPZ file */
-  const char *sacpzfile = "foo";
+  const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
   double complex *poles, *zeros;
-  double npoles, nzeros;
+  int npoles, nzeros;
   double constant;
-  parse_sacpz(sacpzfile, 
-              &poles, &npoles,
-              &zeros, &nzeros,
-              &constant);
+  parse_sacpz (sacpzfile,
+               &poles, &npoles,
+               &zeros, &nzeros,
+               &constant);
   /* Get frequency response */
   double *freq;
   double complex *freqResponse;
   int flag = 0;
-  get_freq_response(poles, npoles,
-                    zeros, nzeros,
-                    constant, sampleRate, totalSamples,
-                    &freq, &freqResponse, flag);
-  remove_response(fftResult, freqResponse, totalSamples);
-  /* Apply PSD */
+  get_freq_response (poles, npoles,
+                     zeros, nzeros,
+                     constant, sampleRate, totalSamples,
+                     &freq, &freqResponse, flag);
+
+  remove_response (fftResult, freqResponse, totalSamples);
+  FILE *freq_response_result = fopen ("freq_response_result.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (freq_response_result, "%lf %e\n", freq[i], cabs (freqResponse[i]));
+  }
+  fclose (freq_response_result);
+  FILE *response_removed = fopen ("response_removed.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (response_removed, "%lf %lf\n", creal (fftResult[i]), cimag (fftResult[i]));
+  }
+  fclose (response_removed);
+  /* Apply iFFT */
+  double *output;
+  ifft (fftResult, totalSamples, &output);
+  /* Output signal with instrument response removed */
+  FILE *out = fopen (outputFile, "w");
+  if (out == NULL)
+  {
+    fprintf (stderr, "Cannot output signal output file.\n");
+    return -1;
+  }
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (out, "%e\n", output[i]);
+  }
+  fclose (out);
 
 #if 0
   FILE *fftResult = fopen ("fft_result.txt", "w");
@@ -203,12 +260,13 @@ main (int argc, char **argv)
 #endif
   free (detrended);
   free (taperedSignal);
-  free( tapered);
-  free(fftResult);
-  free(poles);
-  free(zeros);
-  free(freq);
-  free(freqResponse);
+  free (tapered);
+  free (fftResult);
+  free (poles);
+  free (zeros);
+  free (freq);
+  free (freqResponse);
+  free (output);
 #if 0
   free (fftout);
   free (amp);

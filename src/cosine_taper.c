@@ -26,10 +26,13 @@ cosineTaper (float *data, int n, float alpha, float *tapered)
   for (i = n - width - 1; i < n; i++)
     w[i] = 0.5 * (1 + cos (PI * (-2.0 / alpha + 1 + 2.0 * i / alpha / (n - 1))));
 
+  FILE *out = fopen ("taperprocess.txt", "w");
   for (i = 0; i < n; i++)
   {
     tapered[i] = data[i] * w[i];
+    fprintf (out, "%f %f %f\n", data[i], w[i], tapered[i]);
   }
+  fclose (out);
 
   free (w);
 }
