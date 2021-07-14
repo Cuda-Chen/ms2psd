@@ -20,14 +20,14 @@
 #include "spgram.h"
 
 static void
-range (double *array, double min, double max, size_t n)
+range (double *array, double sampleRate, int totalSamples)
 {
-  double delta = (max - min) / (double)(n - 1);
-  size_t i;
-  for (i = 0; i < n; i++)
-  {
-    array[i] = min + i * delta;
-  }
+  double delta         = 1. / sampleRate;
+  double totalDuration = delta * totalSamples;
+  int i;
+
+  for (i = 0; i < totalSamples; i++)
+    array[i] = i / totalDuration;
 }
 
 static void
@@ -54,12 +54,7 @@ main (int argc, char **argv)
   data_t *data    = NULL;
   double sampleRate;
   uint64_t totalSamples;
-#if 0
-  data_t *autocorr;
-  float complex *filterResult;
-  float complex *freqResponse;
-  int nfft = 2000;
-#endif
+
   float lowcut, highcut; /* low and high cutoff frequencies */
   int order;
   int passes;
@@ -92,48 +87,6 @@ main (int argc, char **argv)
     printf ("Input data read unsuccessfully\n");
     return -1;
   }
-
-  /* Apply auto-correlation */
-  /*autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples);
-  autocorrelation_float (data, totalSamples, autocorr);
-  if (autocorr == NULL)
-  {
-    printf ("Auto-correlation failed\n");
-    return -1;
-  }*/
-#if 0
-  autocorr = (data_t *)malloc (sizeof (data_t) * totalSamples * 2 - 1);
-  autocorr_float (data, totalSamples, autocorr);
-  if (autocorr == NULL)
-  {
-    printf ("Auto-correlation failed\n");
-    return -1;
-  }
-
-  /* Filter the data with band pass filter */
-  filterResult = (float complex *)malloc (sizeof (float complex) * totalSamples * 2 - 1);
-  freqResponse = (float complex *)malloc (sizeof (float complex) * nfft);
-  bandpass_filter_float (autocorr, sampleRate, totalSamples * 2 - 1, nfft,
-                         lowcut, highcut, order, passes,
-                         filterResult, freqResponse);
-  if (filterResult == NULL || freqResponse == NULL)
-  {
-    printf ("Something wrong when applying band pass filter\n");
-    return -1;
-  }
-
-  /* Calculate spectral periodogram */
-  psd = (float *)malloc (sizeof (float) * nfft);
-  spgram (filterResult, totalSamples * 2 - 1, nfft, psd);
-  if (psd == NULL)
-  {
-    printf ("spectral periodogram failed\n");
-    return -1;
-  }
-
-  /* Save the filtered result to MATLAB script */
-  output2Octave (outputScript, nfft, psd);
-#endif
 
   //totalSamples -= 1;
 
@@ -179,8 +132,8 @@ main (int argc, char **argv)
     fprintf (fft_out, "%lf %lf %lf\n", frequency, creal (fftResult[i]), cimag (fftResult[i]));
   }
   fclose (fft_out);
-  //printf("%lf %lf %lf\n", creal(fftResult[0]), cimag(fftResult[0]), tapered[0]);
-  /* Apply instrument response removal */
+
+  /* instrument response removal */
   /* Read SACPZ file */
   const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
   double complex *poles, *zeros;
@@ -199,6 +152,7 @@ main (int argc, char **argv)
                      constant, sampleRate, totalSamples,
                      &freq, &freqResponse, flag);
 
+  /* Apply freqyency response removal */
   remove_response (fftResult, freqResponse, totalSamples);
   FILE *freq_response_result = fopen ("freq_response_result.txt", "w");
   for (int i = 0; i < totalSamples; i++)
@@ -212,6 +166,16 @@ main (int argc, char **argv)
     fprintf (response_removed, "%lf %lf\n", creal (fftResult[i]), cimag (fftResult[i]));
   }
   fclose (response_removed);
+
+  /* band-pass filtering to prevent overamplification */
+  double *taper_window;
+  sacCosineTaper (freq, totalSamples, 1., 2., 8., 9., sampleRate, &taper_window);
+  for (int i = 0; i < totalSamples; i++)
+  {
+    //fftResult[i] = creal(fftResult[i]) * taper_window[i] + cimag(fftResult[i]) * I;
+    fftResult[i] *= taper_window[i];
+  }
+
   /* Apply iFFT */
   double *output;
   ifft (fftResult, totalSamples, &output);
@@ -228,36 +192,12 @@ main (int argc, char **argv)
   }
   fclose (out);
 
-#if 0
-  FILE *fftResult = fopen ("fft_result.txt", "w");
-  if (fftResult == NULL)
-  {
-    printf ("Error opening!");
-    return -1;
-  }
-  fftToFileHalf (tapered, totalSamples, sampleRate, fftResult);
-  fclose (fftResult);
-
-  double complex *fftout;
-  fft (tapered, totalSamples, &fftout);
-  double *amp, *phase;
-  spectra (fftout, totalSamples, &amp, &phase);
-  FILE *fftOut = fopen ("fft_out.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (fftOut, "%lf %lf%c", amp[i], phase[i], " \n"[i != totalSamples - 1]);
-  }
-  fclose (fftOut);
-#endif
-
   /* Free allocated objects */
   free (data);
-#if 0
-  free (autocorr);
-  free (filterResult);
-  free (freqResponse);
-  free (psd);
-#endif
+
+  //free (filterResult);
+  //free (freqResponse);
+
   free (detrended);
   free (taperedSignal);
   free (tapered);
@@ -266,12 +206,8 @@ main (int argc, char **argv)
   free (zeros);
   free (freq);
   free (freqResponse);
+  //free(taper_window);
   free (output);
-#if 0
-  free (fftout);
-  free (amp);
-  free (phase);
-#endif
 
   return 0;
 }
