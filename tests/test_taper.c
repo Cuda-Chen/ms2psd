@@ -1,10 +1,26 @@
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cosine_taper.h"
+#include "freq_response.h"
+
 #define PI 3.14159265358979
 
 #define OUTPUT_FILENAME "consine_window.m"
+#define FREQ_TAPER_OUTPUT_FILENAME "freq_taper_window.m"
+
+static void
+range (double *array, double sampleRate, int totalSamples)
+{
+  double delta         = 1. / sampleRate;
+  double totalDuration = delta * totalSamples;
+  int i;
+
+  for (i = 0; i < totalSamples; i++)
+    array[i] = i / totalDuration;
+}
 
 int
 main ()
@@ -58,6 +74,35 @@ main ()
   fprintf (fid, "  axis([-0.5 0.5 -140 20]);\n");
   fprintf (fid, "title(['Cosine window']);\n");
   fclose (fid);
+
+  int taper_length = 18000;
+  double freq[taper_length];
+  double *taper;
+  double sampling_rate = 20.0f;
+
+  range (freq, sampling_rate, taper_length);
+  int rv = sacCosineTaper (freq, taper_length, 1., 2., 8., 9., sampling_rate, &taper);
+  assert (rv == 0);
+
+  FILE *fid1 = fopen (FREQ_TAPER_OUTPUT_FILENAME, "w");
+  fprintf (fid1, "%% %s: auto-generated file\n\n", FREQ_TAPER_OUTPUT_FILENAME);
+  fprintf (fid1, "clear all;\n");
+  fprintf (fid1, "close all;\n\n");
+  fprintf (fid1, "n=%u;\n", taper_length);
+  for (i = 0; i < taper_length; i++)
+  {
+    fprintf (fid1, "w(%4u) = %12.4e;\n", i + 1, taper[i]);
+  }
+  fprintf (fid1, "t=0:(n-1);\n");
+  fprintf (fid1, "figure;\n");
+  fprintf (fid1, "subplot(1,1,1);\n");
+  fprintf (fid1, "  plot(t,w,'Color',[0 0.25 0.5],'LineWidth',2);\n");
+  fprintf (fid1, "  grid on;\n");
+  fprintf (fid1, "  xlabel('sample index');\n");
+  fprintf (fid1, "  ylabel('window');\n");
+  fprintf (fid1, "  axis([0 n-1 -0.1 1.1]);\n");
+  fclose (fid1);
+  free (taper);
 
   return 0;
 }
