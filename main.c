@@ -33,18 +33,12 @@ range (double *array, double sampleRate, int totalSamples)
 static void
 usage ()
 {
-  printf ("Usage: ./ms2psd [c1] [c2] [order] [passes] [input] [output]");
+  printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [output]");
   printf ("\n\nInput parameters:\n");
-  printf ("c1: low cut frequency (Hz)\n");
-  printf ("c2: high cut frequency (Hz)\n");
-  printf ("order: filter order\n");
-  printf ("passes: set '1' for forward filtering or set '2' for forward-backward filtering\n");
-  printf ("input: a miniSEED seismic record\n");
-  printf ("output: a text file containing filtered result (real and imaginary part)\n");
-  printf ("\nOutput files and their format: \n");
-  printf ("1. A MATLAB script to plot the input and filter result.\n");
-  //printf ("2. A text file containing filtered result (real and imaginary part).\n");
-  //printf ("3. A miniSEED file which contains filtered result (real part only).\n");
+  printf("f1, f2, f3, f4: four-corner frequencies (Hz)\n");
+  printf("totype: output waveform format, e.g., displacement, velocity, acceleration\n");
+  printf("input: input waveform. Should be miniSEED format\n");
+  printf("output: output waveform in miniSEED format\n");
 }
 
 int
@@ -55,26 +49,24 @@ main (int argc, char **argv)
   double sampleRate;
   uint64_t totalSamples;
 
-  float lowcut, highcut; /* low and high cutoff frequencies */
-  int order;
-  int passes;
+  float f1, f2, f3, f4; /* four-corner frequencies */
+  int totype; /* output waveform model, e.g., displacement, velocity, or acceleration */ 
   char *outputFile;
-  const char *outputScript = "psd_result.m";
-  float *psd;
   int rv;
 
   /* Simple argement parsing */
-  if (argc != 7)
+  if (argc != 8)
   {
     usage ();
     return 1;
   }
-  lowcut     = atof (argv[1]);
-  highcut    = atof (argv[2]);
-  order      = atoi (argv[3]);
-  passes     = atoi (argv[4]);
-  mseedfile  = argv[5];
-  outputFile = argv[6];
+  f1    = atof (argv[1]);
+  f2    = atof (argv[2]);
+  f3      = atoi (argv[3]);
+  f4     = atoi (argv[4]);
+  totype = atoi(argv[5]);
+  mseedfile  = argv[6];
+  outputFile = argv[7];
 
   /* Get data from input miniSEED file */
   rv = parse_miniSEED (mseedfile, &data, &sampleRate, &totalSamples);
@@ -87,8 +79,6 @@ main (int argc, char **argv)
     printf ("Input data read unsuccessfully\n");
     return -1;
   }
-
-  //totalSamples -= 1;
 
   /* Method #2 */
   FILE *dataout = fopen ("dataout.txt", "w");
@@ -146,11 +136,10 @@ main (int argc, char **argv)
   /* Get frequency response */
   double *freq;
   double complex *freqResponse;
-  int flag = 0;
   get_freq_response (poles, npoles,
                      zeros, nzeros,
                      constant, sampleRate, totalSamples,
-                     &freq, &freqResponse, flag);
+                     &freq, &freqResponse, totype);
 
   /* Apply freqyency response removal */
   remove_response (fftResult, freqResponse, totalSamples);
@@ -169,7 +158,7 @@ main (int argc, char **argv)
 
   /* band-pass filtering to prevent overamplification */
   double *taper_window;
-  sacCosineTaper (freq, totalSamples, 1., 2., 8., 9., sampleRate, &taper_window);
+  sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, &taper_window);
   for (int i = 0; i < totalSamples; i++)
   {
     //fftResult[i] = creal(fftResult[i]) * taper_window[i] + cimag(fftResult[i]) * I;
