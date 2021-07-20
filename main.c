@@ -10,7 +10,6 @@
 #include "common.h"
 #include "cosine_taper.h"
 #include "datatype.h"
-//#include "standard_deviation.h"
 #include "detrend.h"
 #include "fft.h"
 #include "freq_response.h"
@@ -18,6 +17,7 @@
 #include "parse_miniSEED.h"
 #include "parse_sacpz.h"
 #include "spgram.h"
+#include "standard_deviation.h"
 
 static void
 range (double *array, double sampleRate, int totalSamples)
@@ -35,10 +35,10 @@ usage ()
 {
   printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [output]");
   printf ("\n\nInput parameters:\n");
-  printf("f1, f2, f3, f4: four-corner frequencies (Hz)\n");
-  printf("totype: output waveform format, e.g., displacement, velocity, acceleration\n");
-  printf("input: input waveform. Should be miniSEED format\n");
-  printf("output: output waveform in miniSEED format\n");
+  printf ("f1, f2, f3, f4: four-corner frequencies (Hz)\n");
+  printf ("totype: output waveform format, e.g., displacement, velocity, acceleration\n");
+  printf ("input: input waveform. Should be miniSEED format\n");
+  printf ("output: output waveform in miniSEED format\n");
 }
 
 int
@@ -50,7 +50,7 @@ main (int argc, char **argv)
   uint64_t totalSamples;
 
   float f1, f2, f3, f4; /* four-corner frequencies */
-  int totype; /* output waveform model, e.g., displacement, velocity, or acceleration */ 
+  int totype;           /* output waveform model, e.g., displacement, velocity, or acceleration */
   char *outputFile;
   int rv;
 
@@ -60,11 +60,11 @@ main (int argc, char **argv)
     usage ();
     return 1;
   }
-  f1    = atof (argv[1]);
-  f2    = atof (argv[2]);
-  f3      = atoi (argv[3]);
-  f4     = atoi (argv[4]);
-  totype = atoi(argv[5]);
+  f1         = atof (argv[1]);
+  f2         = atof (argv[2]);
+  f3         = atoi (argv[3]);
+  f4         = atoi (argv[4]);
+  totype     = atoi (argv[5]);
   mseedfile  = argv[6];
   outputFile = argv[7];
 
@@ -88,6 +88,12 @@ main (int argc, char **argv)
   }
   fclose (dataout);
   /* Demean */
+  float mean, std;
+  getMeanAndSD (data, totalSamples, &mean, &std);
+  for (int i = 0; i < totalSamples; i++)
+  {
+    data[i] -= mean;
+  }
   /* Detrend */
   data_t *detrended;
   detrend (data, (int)totalSamples, &detrended);
