@@ -16,7 +16,7 @@
 #include "output2Octave.h"
 #include "parse_miniSEED.h"
 #include "parse_sacpz.h"
-#include "spgram.h"
+#include "psd.h"
 #include "standard_deviation.h"
 
 static void
@@ -187,6 +187,21 @@ main (int argc, char **argv)
   }
   fclose (out);
 
+  /* Get power spetral density (PSD) of this segment */
+  double *psd;
+  rv = calculatePSD (fftResult, totalSamples, sampleRate, &psd);
+  if (rv != 0)
+  {
+    fprintf (stderr, "Something wrong in calculate PSD procedure,\n");
+    return -1;
+  }
+  FILE *psd_out = fopen ("psd_out.txt", "w");
+  for (int i = 0; i < totalSamples; i++)
+  {
+    fprintf (psd_out, "%e\n", psd[i]);
+  }
+  fclose (psd_out);
+
   /* Free allocated objects */
   free (data);
 
@@ -201,6 +216,7 @@ main (int argc, char **argv)
   free (zeros);
   free (freq);
   free (freqResponse);
+  free (psd);
   //free(taper_window);
   free (output);
 
