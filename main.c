@@ -167,7 +167,6 @@ main (int argc, char **argv)
   sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, &taper_window);
   for (int i = 0; i < totalSamples; i++)
   {
-    //fftResult[i] = creal(fftResult[i]) * taper_window[i] + cimag(fftResult[i]) * I;
     fftResult[i] *= taper_window[i];
   }
 
@@ -189,6 +188,15 @@ main (int argc, char **argv)
 
   /* Get power spetral density (PSD) of this segment */
   double *psd;
+
+  /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,
+   * we do not do such operation as this produces resaonable result
+   * Yet I still reverse this block for future use
+   */
+  /*for(int i = 0; i < totalSamples; i++) {
+      fftResult[i] /= (1. / sampleRate);
+  }*/
+
   rv = calculatePSD (fftResult, totalSamples, sampleRate, &psd);
   if (rv != 0)
   {
@@ -198,16 +206,12 @@ main (int argc, char **argv)
   FILE *psd_out = fopen ("psd_out.txt", "w");
   for (int i = 0; i < totalSamples; i++)
   {
-    fprintf (psd_out, "%e\n", psd[i]);
+    fprintf (psd_out, "%e %e\n", freq[i], psd[i]);
   }
   fclose (psd_out);
 
   /* Free allocated objects */
   free (data);
-
-  //free (filterResult);
-  //free (freqResponse);
-
   free (detrended);
   free (taperedSignal);
   free (tapered);
@@ -217,7 +221,6 @@ main (int argc, char **argv)
   free (freq);
   free (freqResponse);
   free (psd);
-  //free(taper_window);
   free (output);
 
   return 0;
