@@ -33,11 +33,15 @@ range (double *array, double sampleRate, int totalSamples)
 static void
 usage ()
 {
-  printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [output]");
+  printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [resp] [output]");
   printf ("\n\nInput parameters:\n");
   printf ("f1, f2, f3, f4: four-corner frequencies (Hz)\n");
-  printf ("totype: output waveform format, e.g., displacement, velocity, acceleration\n");
+  printf ("totype: specify the following numbers for output waveform format:\n");
+  printf ("        0: displacement\n");
+  printf ("        1: velocity\n");
+  printf ("        2: acceleration\n");
   printf ("input: input waveform. Should be miniSEED format\n");
+  printf ("resp: response file in SACPZ format\n");
   printf ("output: output waveform in miniSEED format\n");
 }
 
@@ -51,11 +55,12 @@ main (int argc, char **argv)
 
   float f1, f2, f3, f4; /* four-corner frequencies */
   int totype;           /* output waveform model, e.g., displacement, velocity, or acceleration */
+  char *sacpzfile;
   char *outputFile;
   int rv;
 
   /* Simple argement parsing */
-  if (argc != 8)
+  if (argc != 9)
   {
     usage ();
     return 1;
@@ -66,7 +71,8 @@ main (int argc, char **argv)
   f4         = atoi (argv[4]);
   totype     = atoi (argv[5]);
   mseedfile  = argv[6];
-  outputFile = argv[7];
+  sacpzfile  = argv[7];
+  outputFile = argv[8];
 
   /* Get data from input miniSEED file */
   rv = parse_miniSEED (mseedfile, &data, &sampleRate, &totalSamples);
@@ -131,7 +137,7 @@ main (int argc, char **argv)
 
   /* instrument response removal */
   /* Read SACPZ file */
-  const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
+  //const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
   double complex *poles, *zeros;
   int npoles, nzeros;
   double constant;
