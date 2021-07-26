@@ -87,12 +87,6 @@ main (int argc, char **argv)
   }
 
   /* Method #2 */
-  FILE *dataout = fopen ("dataout.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (dataout, "%f%c", data[i], " \n"[i != totalSamples - 1]);
-  }
-  fclose (dataout);
   /* Demean */
   float mean, std;
   getMeanAndSD (data, totalSamples, &mean, &std);
@@ -103,37 +97,16 @@ main (int argc, char **argv)
   /* Detrend */
   data_t *detrended;
   detrend (data, (int)totalSamples, &detrended);
-  FILE *detrendout = fopen ("detrendout.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (detrendout, "%f%c", detrended[i], " \n"[i != totalSamples - 1]);
-  }
-  fclose (detrendout);
   /* First taper the signal with 5%-cosine-window */
   float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
   cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
-  double *tapered   = (double *)malloc (sizeof (double) * totalSamples);
-  FILE *taperResult = fopen ("taperout.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    tapered[i] = (double)taperedSignal[i];
-    fprintf (taperResult, "%lf\n", tapered[i]);
-  }
-  fclose (taperResult);
+  double *tapered = (double *)malloc (sizeof (double) * totalSamples);
   /* Then execute FFT */
   double complex *fftResult;
   fft (tapered, totalSamples, &fftResult);
 
   double delta         = 1. / sampleRate;
   double totalDuration = delta * totalSamples;
-
-  FILE *fft_out = fopen ("fft_result.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    double frequency = i / totalDuration;
-    fprintf (fft_out, "%lf %lf %lf\n", frequency, creal (fftResult[i]), cimag (fftResult[i]));
-  }
-  fclose (fft_out);
 
   /* instrument response removal */
   /* Read SACPZ file */
@@ -155,18 +128,6 @@ main (int argc, char **argv)
 
   /* Apply freqyency response removal */
   remove_response (fftResult, freqResponse, totalSamples);
-  FILE *freq_response_result = fopen ("freq_response_result.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (freq_response_result, "%lf %e\n", freq[i], cabs (freqResponse[i]));
-  }
-  fclose (freq_response_result);
-  FILE *response_removed = fopen ("response_removed.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (response_removed, "%lf %lf\n", creal (fftResult[i]), cimag (fftResult[i]));
-  }
-  fclose (response_removed);
 
   /* band-pass filtering to prevent overamplification */
   double *taper_window;
