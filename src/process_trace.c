@@ -1,9 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-//#include <assert.h>
-
-#include "fftw3.h"
 
 #include "autocorr.h"
 #include "bandpass_filter.h"
@@ -19,73 +16,27 @@
 #include "psd.h"
 #include "standard_deviation.h"
 
-#include "process_trace.h"
-
-static void
-range (double *array, double sampleRate, int totalSamples)
+static int
+splitTraceToSegments ()
 {
-  double delta         = 1. / sampleRate;
-  double totalDuration = delta * totalSamples;
-  int i;
-
-  for (i = 0; i < totalSamples; i++)
-    array[i] = i / totalDuration;
-}
-
-static void
-usage ()
-{
-  printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [resp] [output]");
-  printf ("\n\nInput parameters:\n");
-  printf ("f1, f2, f3, f4: four-corner frequencies (Hz)\n");
-  printf ("totype: specify the following numbers for output waveform format:\n");
-  printf ("        0: displacement\n");
-  printf ("        1: velocity\n");
-  printf ("        2: acceleration\n");
-  printf ("input: input waveform. Should be miniSEED format\n");
-  printf ("resp: response file in SACPZ format\n");
-  printf ("output: output waveform in miniSEED format\n");
 }
 
 int
-main (int argc, char **argv)
+processTrace (const char *mseedfile,
+              float f1,
+              float f2,
+              float f3,
+              float f4,
+              int totype,
+              const char *sacpzfile,
+              const char *outputFile)
 {
-  char *mseedfile = NULL;
-  //data_t *data    = NULL;
-  //double sampleRate;
-  //uint64_t totalSamples;
+  data_t *data = NULL;
+  double sampleRate;
+  uint64_t totalSamples;
 
-  float f1, f2, f3, f4; /* four-corner frequencies */
-  int totype;           /* output waveform model, e.g., displacement, velocity, or acceleration */
-  char *sacpzfile;
-  char *outputFile;
   int rv;
 
-  /* Simple argement parsing */
-  if (argc != 9)
-  {
-    usage ();
-    return 1;
-  }
-  f1         = atof (argv[1]);
-  f2         = atof (argv[2]);
-  f3         = atoi (argv[3]);
-  f4         = atoi (argv[4]);
-  totype     = atoi (argv[5]);
-  mseedfile  = argv[6];
-  sacpzfile  = argv[7];
-  outputFile = argv[8];
-
-  rv = processTrace (mseedfile,
-                     f1,
-                     f2,
-                     f3,
-                     f4,
-                     totype,
-                     sacpzfile,
-                     outputFile);
-
-#if 0
   /* Get data from input miniSEED file */
   rv = parse_miniSEED (mseedfile, &data, &sampleRate, &totalSamples);
   if (rv != 0)
@@ -98,7 +49,6 @@ main (int argc, char **argv)
     return -1;
   }
 
-  /* Method #2 */
   /* Demean */
   float mean, std;
   getMeanAndSD (data, totalSamples, &mean, &std);
@@ -203,7 +153,6 @@ main (int argc, char **argv)
   free (freqResponse);
   free (psd);
   free (output);
-#endif
 
   return 0;
 }
