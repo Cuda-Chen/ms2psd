@@ -101,6 +101,8 @@ main (int argc, char **argv)
   float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
   cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
   double *tapered = (double *)malloc (sizeof (double) * totalSamples);
+  for (int i = 0; i < totalSamples; i++)
+    tapered[i] = (double)taperedSignal[i];
   /* Then execute FFT */
   double complex *fftResult;
   fft (tapered, totalSamples, &fftResult);
