@@ -8,7 +8,7 @@
 #include "parse_miniSEED.h"
 
 int
-parse_miniSEED (const char *mseedfile, data_t **data, double *sampleRate, uint64_t *dataLength)
+parse_miniSEED (const char *mseedfile, MS3Selections *selection, data_t **data, double *sampleRate, uint64_t *dataLength)
 {
   MS3TraceList *mstl = NULL;
   MS3TraceID *tid    = NULL;
@@ -23,7 +23,7 @@ parse_miniSEED (const char *mseedfile, data_t **data, double *sampleRate, uint64
   flags |= MSF_RECORDLIST;
 
   /* Read all miniSEED into a trace list */
-  rv = ms3_readtracelist (&mstl, mseedfile, NULL, 0, flags, verbose);
+  rv = ms3_readtracelist_selection (&mstl, mseedfile, NULL, selection, 0, flags, verbose);
   if (rv != MS_NOERROR)
   {
     ms_log (2, "Cannot read miniSEED from file: %s\n", ms_errorstr (rv));

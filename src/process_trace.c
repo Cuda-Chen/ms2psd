@@ -37,8 +37,11 @@ processTrace (const char *mseedfile,
 
   int rv;
 
+  /* selection of trace */
+  MS3Selections *selection = NULL;
+
   /* Get data from input miniSEED file */
-  rv = parse_miniSEED (mseedfile, &data, &sampleRate, &totalSamples);
+  rv = parse_miniSEED (mseedfile, selection, &data, &sampleRate, &totalSamples);
   if (rv != 0)
   {
     return rv;
