@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -213,6 +214,11 @@ processTrace (const char *mseedfile,
   {
     fprintf (stderr, "Something wrong in calculate PSD procedure,\n");
     return -1;
+  }
+  /* Set unit to decibel (dB) */
+  for (int i = 0; i < totalSamples; i++)
+  {
+    psd[i] = 10 * log10 (psd[i]);
   }
   FILE *psd_out = fopen ("psd_out.txt", "w");
   for (int i = 0; i < totalSamples; i++)
