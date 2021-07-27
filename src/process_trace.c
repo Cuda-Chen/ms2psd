@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "libmseed.h"
+
 #include "autocorr.h"
 #include "bandpass_filter.h"
 #include "common.h"
@@ -16,9 +18,43 @@
 #include "psd.h"
 #include "standard_deviation.h"
 
+nstime_t NSECS = 1000000000;
+
+/* 1-hour long segment properties */
+int lengthOfOneHour  = 3600;
+int overlapOfOneHour = 50;
+
+/* 900 seconds, or 15-minute long segment properties */
+int lengthOfSegment  = 900;
+int overlapOfSegment = 75;
+
 static int
-splitTraceToSegments ()
+getStartAndEndTime (const char *mseedfile, nstime_t *starttime, nstime_t *endtime)
 {
+  uint32_t flags = 0;
+  int8_t verbose = 0;
+  flags |= MSF_VALIDATECRC;
+  //flags |= MSF_RECORDLIST;
+  int rv;
+
+  MS3TraceList *mstl = NULL;
+  rv                 = ms3_readtracelist (&mstl, mseedfile, NULL, 0, flags, verbose);
+  if (rv != 0)
+    return rv;
+  *starttime = mstl->traces->earliest;
+  *endtime   = mstl->last->latest;
+
+  char starttimestr[30];
+  char endtimestr[30];
+  ms_nstime2timestr (mstl->traces->earliest, starttimestr, ISOMONTHDAY, NANO);
+  ms_nstime2timestr (mstl->last->latest, endtimestr, ISOMONTHDAY, NANO);
+  printf ("%s - %s\n", starttimestr, endtimestr);
+
+  /* Clean up */
+  if (mstl)
+    mstl3_free (&mstl, 0);
+
+  return 0;
 }
 
 int
@@ -36,12 +72,49 @@ processTrace (const char *mseedfile,
   uint64_t totalSamples;
 
   int rv;
+  uint8_t pubversion = 0;
 
-  /* selection of trace */
-  MS3Selections *selection = NULL;
+  /* Get the start time and end time of this trace */
+  nstime_t starttimeOfTrace;
+  nstime_t endtimeOfTrace;
+  rv = getStartAndEndTime (mseedfile, &starttimeOfTrace, &endtimeOfTrace);
+  if (rv != 0)
+  {
+    fprintf (stderr, "Cannot open input miniSEED for getting start time and end time\n");
+    return -1;
+  }
+
+  int nextTimeStamp;
+  nstime_t nextTimeStampNS;
+  nstime_t starttime;
+  nstime_t endtime;
+
+  /* Split trace to 1-hour long segment with 50% overlapping
+   * for reducing processing time */
+
+  /* Split 1-hour long segment to 15-minute long segment
+   * with 75% overlapping for reducing data variance */
+  nextTimeStamp             = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
+  nextTimeStampNS           = nextTimeStamp * NSECS;
+  starttime                 = starttimeOfTrace;
+  endtime                   = starttime + ((nstime_t)lengthOfSegment * NSECS);
+  char *sidpattern          = "*";
+  MS3Selections *selections = NULL;
+  int count                 = 0;
+  while (endtime <= endtimeOfTrace)
+  {
+    rv = ms3_addselect (&selections, sidpattern, starttime, endtime, pubversion);
+    starttime += nextTimeStampNS;
+    endtime += nextTimeStampNS;
+    count++;
+  }
+  ms3_printselections (selections);
+  if (selections)
+    ms3_freeselections (selections);
 
   /* Get data from input miniSEED file */
-  rv = parse_miniSEED (mseedfile, selection, &data, &sampleRate, &totalSamples);
+  MS3Selections *fooselection = NULL;
+  rv                          = parse_miniSEED (mseedfile, fooselection, &data, &sampleRate, &totalSamples);
   if (rv != 0)
   {
     return rv;
