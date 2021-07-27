@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "range.h"
+
 #define PI 3.14159265358979323846
 
 /*
@@ -22,16 +24,6 @@ range (double *array, double min, double max, size_t n)
   }
 }
 #endif
-static void
-range (double *array, double sampleRate, int totalSamples)
-{
-  double delta         = 1. / sampleRate;
-  double totalDuration = delta * totalSamples;
-  int i;
-
-  for (i = 0; i < totalSamples; i++)
-    array[i] = i / totalDuration;
-}
 
 int
 get_freq_response (double complex *poles, int npoles,

@@ -22,17 +22,6 @@
 #include "process_trace.h"
 
 static void
-range (double *array, double sampleRate, int totalSamples)
-{
-  double delta         = 1. / sampleRate;
-  double totalDuration = delta * totalSamples;
-  int i;
-
-  for (i = 0; i < totalSamples; i++)
-    array[i] = i / totalDuration;
-}
-
-static void
 usage ()
 {
   printf ("Usage: ./ms2psd [f1] [f2] [f3] [f4] [totype] [input] [resp] [output]");

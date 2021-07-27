@@ -108,7 +108,11 @@ processTrace (const char *mseedfile,
     endtime += nextTimeStampNS;
     count++;
   }
+
+#ifdef DEBUG
   ms3_printselections (selections);
+#endif
+
   if (selections)
     ms3_freeselections (selections);
 
