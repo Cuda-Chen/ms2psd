@@ -1,4 +1,4 @@
-DEBUG = 1
+DEBUG = 0
 
 CC = gcc
 EXEC = ms2psd
@@ -20,7 +20,7 @@ ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g -DDEBUG=1
 endif
 
-.PHONY: all clean tests
+.PHONY: all clean tests format
 
 all: $(EXEC)
 
@@ -33,6 +33,9 @@ tests: $(OBJS)
 
 %.o: %.c
 	$(CC) $(COMMON) $(CFLAGS) -c $< -o $@
+
+format:
+	clang-format -i main.c src/*.[hc] tests/*.[hc]
 
 clean:
 	#$(MAKE) -C libmseed/ clean

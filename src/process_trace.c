@@ -17,17 +17,32 @@
 #include "parse_miniSEED.h"
 #include "parse_sacpz.h"
 #include "psd.h"
+#include "range.h"
 #include "standard_deviation.h"
 
 nstime_t NSECS = 1000000000;
 
-/* 1-hour long segment properties */
+/* 1-hour long segment properties, 50% overlap*/
 int lengthOfOneHour  = 3600;
 int overlapOfOneHour = 50;
 
-/* 900 seconds, or 15-minute long segment properties */
+/* 900 seconds, or 15-minute long segment properties, 75% overlap */
 int lengthOfSegment  = 900;
 int overlapOfSegment = 75;
+
+static int
+compare (const void *a, const void *b)
+{
+  const double *da = (const double *)a;
+  const double *db = (const double *)b;
+  return (*da > *db) - (*da < *db);
+}
+
+static double
+decibel (const double a)
+{
+  return 10 * log10 (a);
+}
 
 static int
 getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate)
@@ -71,7 +86,7 @@ processTrace (const char *mseedfile,
               const char *sacpzfile,
               const char *outputFile)
 {
-  data_t *data = NULL;
+  //data_t *data = NULL;
   double sampleRate;
   uint64_t totalSamples;
 
@@ -133,19 +148,34 @@ processTrace (const char *mseedfile,
   starttime = starttimeOfTrace;
   endtime   = starttime + ((nstime_t)lengthOfSegment * NSECS);
   /* Get data from input miniSEED file */
+  fprintf (stderr, "It's segment time!");
   for (int a = 0; a < segments; a++)
   {
     MS3Selections *selection = NULL;
-    rv                       = ms3_addselect (&selection, sidpattern, starttime, endtime, pubversion);
-    rv                       = parse_miniSEED (mseedfile, selection, &data, &sampleRate, &totalSamples);
+    data_t *data_temp;
+    rv = ms3_addselect (&selection, sidpattern, starttime, endtime, pubversion);
+    if (rv != 0)
+    {
+      printf ("selection failed\n");
+      return rv;
+    }
+    rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
     if (rv != 0)
     {
       return rv;
     }
-    if (data == NULL)
+    if (data_temp == NULL)
     {
       printf ("Input data read unsuccessfully\n");
       return -1;
+    }
+
+    /* Adjust input data length */
+    totalSamples = (int)(lengthOfSegment * sampleRate);
+    data_t *data = (data_t *)malloc (sizeof (data_t) * totalSamples);
+    for (int i = 0; i < totalSamples; i++)
+    {
+      data[i] = data_temp[i];
     }
 
     /* Demean */
@@ -254,6 +284,7 @@ processTrace (const char *mseedfile,
 #endif
 
     /* Free allocated objects */
+    free (data_temp);
     free (data);
     free (detrended);
     free (taperedSignal);
@@ -274,25 +305,38 @@ processTrace (const char *mseedfile,
   }
 
   /* PSD properties (min, max, mean, median) summary */
-  double *psdMean = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdArr    = (double *)malloc (sizeof (double) * segments);
   for (int i = 0; i < psdBinWindowSize; i++)
     psdMean[i] = 0.0f;
-  /* Mean calculation */
   for (int i = 0; i < psdBinWindowSize; i++)
   {
     for (int j = 0; j < segments; j++)
     {
       int psdBinIndex = j * psdBinWindowSize + i;
       *(psdMean + i) += *(psdBin + psdBinIndex);
+      *(psdArr + j) = *(psdBin + psdBinIndex);
     }
+
+    qsort (psdArr, segments, sizeof (psdArr[0]), compare);
+    psdMin[i]    = psdArr[0];
+    psdMax[i]    = psdArr[segments - 1];
+    psdMedian[i] = (segments % 2 == 0) ? ((psdArr[segments / 2 - 1] + psdArr[segments / 2]) / 2.0) : (psdArr[segments / 2]);
   }
+  /* Mean calculation */
   for (int i = 0; i < psdBinWindowSize; i++)
     psdMean[i] /= (double)segments;
 
   /* Set unit to decibel (dB) */
   for (int i = 0; i < psdBinWindowSize; i++)
   {
-    psdMean[i] = 10 * log10 (psdMean[i]);
+    psdMin[i]    = decibel (psdMin[i]);
+    psdMax[i]    = decibel (psdMax[i]);
+    psdMean[i]   = decibel (psdMean[i]);
+    psdMedian[i] = decibel (psdMedian[i]);
   }
 
   /* Output PSD */
@@ -301,25 +345,31 @@ processTrace (const char *mseedfile,
   FILE *psd_out = fopen ("psd_out.txt", "w");
   for (int i = 0; i < psdBinWindowSize; i++)
   {
-    fprintf (psd_out, "%e %e\n", estimatedFreqs[i], psdMean[i]);
+    fprintf (psd_out, "%e %e %e %e %e\n", estimatedFreqs[i], psdMean[i], psdMin[i], psdMax[i], psdMedian[i]);
   }
   fclose (psd_out);
   // all segment PSD
-#if 0
-  for(int i = 0; i < segments; i++) {
-      char psd_file[50];
-      sprintf(psd_file, "psd_trace_%d.txt", i);
-      FILE *out = fopen(psd_file, "w");
-      for(int j = 0; j < psdBinWindowSize; j++) {
-          int index = i * psdBinWindowSize + j;
-          fprintf(out, "%e %e\n", estimatedFreqs[j], *(psdBin + index));
-      }
-      fclose(out);
+  //#if 0
+  for (int i = 0; i < segments; i++)
+  {
+    char psd_file[50];
+    sprintf (psd_file, "psd_trace_%d.txt", i);
+    FILE *out = fopen (psd_file, "w");
+    for (int j = 0; j < psdBinWindowSize; j++)
+    {
+      int index = i * psdBinWindowSize + j;
+      fprintf (out, "%e %e\n", estimatedFreqs[j], *(psdBin + index));
+    }
+    fclose (out);
   }
-#endif
+  //#endif
 
   free (psdBin);
+  free (psdMin);
+  free (psdMax);
   free (psdMean);
+  free (psdMedian);
+  free (psdArr);
   free (estimatedFreqs);
 
   return 0;
