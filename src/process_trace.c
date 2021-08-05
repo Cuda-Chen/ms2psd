@@ -348,21 +348,6 @@ processTrace (const char *mseedfile,
     fprintf (psd_out, "%e %e %e %e %e\n", estimatedFreqs[i], psdMean[i], psdMin[i], psdMax[i], psdMedian[i]);
   }
   fclose (psd_out);
-  // all segment PSD
-  //#if 0
-  for (int i = 0; i < segments; i++)
-  {
-    char psd_file[50];
-    sprintf (psd_file, "psd_trace_%d.txt", i);
-    FILE *out = fopen (psd_file, "w");
-    for (int j = 0; j < psdBinWindowSize; j++)
-    {
-      int index = i * psdBinWindowSize + j;
-      fprintf (out, "%e %e\n", estimatedFreqs[j], *(psdBin + index));
-    }
-    fclose (out);
-  }
-  //#endif
 
   free (psdBin);
   free (psdMin);
