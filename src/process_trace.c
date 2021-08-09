@@ -339,9 +339,82 @@ processTrace (const char *mseedfile,
     psdMedian[i] = decibel (psdMedian[i]);
   }
 
-  /* Output PSD */
   double *estimatedFreqs = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
+
+  /* Dimension reduction technique escribed in McMarana 2004 */
+  /* Set the left and right frequency limit of each octave */
+  double *leftFreqs, *rightFreqs;
+  int freqLen;
+  rv = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, psdBinWindowSize);
+  if (rv != 0)
+  {
+    return -1;
+  }
+
+  /* Set center frequency (geometric mean of low and high frequency) */
+  double *centerFreqs = (double *)malloc (sizeof (double) * freqLen);
+  for (int i = 0; i < freqLen; i++)
+  {
+    centerFreqs[i] = sqrt (leftFreqs[i] * rightFreqs[i]);
+  }
+
+  /* Dimension reduction */
+  double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
+  for (int i = 0; i < segments * freqLen; i++)
+  {
+    psdBinReduced[i] = 0.0f;
+  }
+  for (int i = 0; i < segments; i++)
+  {
+    for (int j = 0; j < freqLen; j++)
+    {
+      int count              = 0;
+      int psdBinReducedIndex = i * freqLen + j;
+      for (int k = 0; k < psdBinWindowSize; k++)
+      {
+        if ((leftFreqs[j] >= estimatedFreqs[k]) && (estimatedFreqs[k] >= rightFreqs[j]))
+        {
+          int psdBinIndex = i * psdBinWindowSize + k;
+          psdBinReduced[psdBinReducedIndex] += psdBin[psdBinIndex];
+          count++;
+        }
+      }
+
+      psdBinReduced[psdBinReducedIndex] /= (double)count;
+    }
+  }
+
+  /* Statistics with dimension reduction */
+  double *psdBinReducedMean = (double *)malloc (sizeof (double) * freqLen);
+  for (int i = 0; i < freqLen; i++)
+  {
+    psdBinReducedMean[i] = 0.0f;
+  }
+  for (int i = 0; i < freqLen; i++)
+  {
+    for (int j = 0; j < segments; j++)
+    {
+      int psdBinReducedIndex = j * freqLen + i;
+      psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
+    }
+    psdBinReducedMean[i] /= (double)segments;
+    psdBinReducedMean[i] = decibel (psdBinReducedMean[i]);
+  }
+
+  FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
+  for (int i = 0; i < freqLen; i++)
+  {
+    fprintf (psd_reduced_out, "%e %e\n", centerFreqs[i], psdBinReducedMean[i]);
+  }
+  fclose (psd_reduced_out);
+  free (leftFreqs);
+  free (rightFreqs);
+  free (centerFreqs);
+  free (psdBinReduced);
+  free (psdBinReducedMean);
+
+  /* Output PSD */
   FILE *psd_out = fopen ("psd_out.txt", "w");
   for (int i = 0; i < psdBinWindowSize; i++)
   {
