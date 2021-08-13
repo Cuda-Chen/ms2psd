@@ -29,9 +29,9 @@ setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, doub
 
   /* long period (low frequency) */
   double fl;
-  double tl = 2.0f * ts;
+  double tl = 1.5f * ts;
 
-  double tr = (double)windowLength / 10.0f; /* longest resolvable preiod */
+  double tr = (double)windowLength / 5.0f; /* longest resolvable preiod */
 
   /* Count the length of left/right frequency length */
   while ((ts <= tr) && (tl <= tr))
@@ -52,7 +52,7 @@ setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, doub
 
   /* Set the left and right frequency of each octave */
   ts = 1. / fh;
-  tl = 2.0f * ts;
+  tl = 1.5f * ts;
   for (i = 0; i < count; i++)
   {
     fh               = 1. / ts;
