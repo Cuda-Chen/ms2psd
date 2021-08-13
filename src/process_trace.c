@@ -346,17 +346,19 @@ processTrace (const char *mseedfile,
   /* Set the left and right frequency limit of each octave */
   double *leftFreqs, *rightFreqs;
   int freqLen;
-  rv = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, psdBinWindowSize);
+  rv = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, lengthOfSegment);
   if (rv != 0)
   {
     return -1;
   }
 
   /* Set center frequency (geometric mean of low and high frequency) */
-  double *centerFreqs = (double *)malloc (sizeof (double) * freqLen);
+  double *centerPeriods = (double *)malloc (sizeof (double) * freqLen);
   for (int i = 0; i < freqLen; i++)
   {
-    centerFreqs[i] = sqrt (leftFreqs[i] * rightFreqs[i]);
+    double ts        = 1. / leftFreqs[i];
+    double tl        = 1. / rightFreqs[i];
+    centerPeriods[i] = sqrt (ts * tl);
   }
 
   /* Dimension reduction */
@@ -386,7 +388,11 @@ processTrace (const char *mseedfile,
   }
 
   /* Statistics with dimension reduction */
-  double *psdBinReducedMean = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedArr    = (double *)malloc (sizeof (double) * segments);
   for (int i = 0; i < freqLen; i++)
   {
     psdBinReducedMean[i] = 0.0f;
@@ -397,30 +403,71 @@ processTrace (const char *mseedfile,
     {
       int psdBinReducedIndex = j * freqLen + i;
       psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
+      psdBinReducedArr[j] = psdBinReduced[psdBinReducedIndex];
     }
+    qsort (psdBinReducedArr, segments, sizeof (psdBinReducedArr[0]), compare);
+    psdBinReducedMin[i]    = psdBinReducedArr[0];
+    psdBinReducedMax[i]    = psdBinReducedArr[segments - 1];
+    psdBinReducedMedian[i] = (segments % 2 == 0) ? ((psdBinReducedArr[segments / 2 - 1] + psdBinReducedArr[segments / 2]) / 2.0) : (psdBinReducedArr[segments / 2]);
     psdBinReducedMean[i] /= (double)segments;
-    psdBinReducedMean[i] = decibel (psdBinReducedMean[i]);
+
+    psdBinReducedMean[i]   = decibel (psdBinReducedMean[i]);
+    psdBinReducedMin[i]    = decibel (psdBinReducedMin[i]);
+    psdBinReducedMax[i]    = decibel (psdBinReducedMax[i]);
+    psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
   }
 
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
-    fprintf (psd_reduced_out, "%e %e\n", centerFreqs[i], psdBinReducedMean[i]);
+    fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[i], psdBinReducedMean[i], psdBinReducedMin[i], psdBinReducedMax[i], psdBinReducedMedian[i]);
   }
   fclose (psd_reduced_out);
+#ifdef SHOWEACHTRACE
+  for (int i = 0; i < segments; i++)
+  {
+    char psd_file[50];
+    sprintf (psd_file, "psd_reduced_trace_%d.txt", i);
+    FILE *out = fopen (psd_file, "w");
+    for (int j = 0; j < freqLen; j++)
+    {
+      int index = i * freqLen + j;
+      fprintf (out, "%e %e\n", centerPeriods[j], *(psdBinReduced + index));
+    }
+    fclose (out);
+  }
+#endif
   free (leftFreqs);
   free (rightFreqs);
-  free (centerFreqs);
+  free (centerPeriods);
   free (psdBinReduced);
   free (psdBinReducedMean);
+  free (psdBinReducedMin);
+  free (psdBinReducedMax);
+  free (psdBinReducedMedian);
+  free (psdBinReducedArr);
 
   /* Output PSD */
   FILE *psd_out = fopen ("psd_out.txt", "w");
-  for (int i = 0; i < psdBinWindowSize; i++)
+  for (int i = 0; i < psdBinWindowSize / 2 + 1; i++)
   {
     fprintf (psd_out, "%e %e %e %e %e\n", estimatedFreqs[i], psdMean[i], psdMin[i], psdMax[i], psdMedian[i]);
   }
   fclose (psd_out);
+#ifdef SHOWEACHTRACE
+  for (int i = 0; i < segments; i++)
+  {
+    char psd_file[50];
+    sprintf (psd_file, "psd_trace_%d.txt", i);
+    FILE *out = fopen (psd_file, "w");
+    for (int j = 0; j < psdBinWindowSize / 2 + 1; j++)
+    {
+      int index = i * psdBinWindowSize + j;
+      fprintf (out, "%e %e\n", estimatedFreqs[j], *(psdBin + index));
+    }
+    fclose (out);
+  }
+#endif
 
   free (psdBin);
   free (psdMin);
