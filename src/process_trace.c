@@ -49,6 +49,12 @@ decibel (const double a)
 }
 
 static int
+binLocation (const double v, double start)
+{
+  return (int)(abs (round (v)) - abs (start));
+}
+
+static int
 getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate)
 {
   uint32_t flags = 0;
@@ -114,6 +120,7 @@ processTrace (const char *mseedfile,
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
+  int totalSegmentsOfOneHour = 1;
 
   /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
@@ -424,23 +431,54 @@ processTrace (const char *mseedfile,
 
   /* Calculate PDF (power density function) */
   int PDFBins       = abs (maxdB - mindB) + 1;
-  double *pdfMean   = (double *)malloc (sizeof (double) * freqLen * PDFBins);
-  double *pdfMin    = (double *)malloc (sizeof (double) * freqLen * PDFBins);
-  double *pdfMax    = (double *)malloc (sizeof (double) * freqLen * PDFBins);
-  double *pdfMedian = (double *)malloc (sizeof (double) * freqLen * PDFBins);
-  for (int i = 0; i < freqLen * PDFBins; i++)
+  double *pdfMean   = (double *)malloc (sizeof (double) * PDFBins * freqLen);
+  double *pdfMin    = (double *)malloc (sizeof (double) * PDFBins * freqLen);
+  double *pdfMax    = (double *)malloc (sizeof (double) * PDFBins * freqLen);
+  double *pdfMedian = (double *)malloc (sizeof (double) * PDFBins * freqLen);
+  for (int i = 0; i < PDFBins * freqLen; i++)
   {
     pdfMean[i]   = 0;
     pdfMin[i]    = 0;
     pdfMax[i]    = 0;
     pdfMedian[i] = 0;
   }
+  /* Histogram accumulation */
   for (int i = 0; i < freqLen; i++)
   {
-    for (int j = 0; j < PDFBins; j++)
+    for (int j = 0; j < totalSegmentsOfOneHour; j++)
     {
+      int idx = j * freqLen + i;
+      pdfMean[binLocation (psdBinReducedMean[idx], maxdB) * freqLen + i]++;
+      psdMin[binLocation (psdBinReducedMin[idx], maxdB) * freqLen + i]++;
+      psdMax[binLocation (psdBinReducedMax[idx], maxdB) * freqLen + i]++;
+      psdMedian[binLocation (psdBinReducedMedian[idx], maxdB) * freqLen + i]++;
     }
   }
+  /* Calculate the PDF, i.e., probability */
+  for (int i = 0; i < PDFBins; i++)
+  {
+    for (int j = 0; j < freqLen; j++)
+    {
+      int idx = i * freqLen + j;
+      pdfMean[idx] /= totalSegmentsOfOneHour;
+      pdfMin[idx] /= totalSegmentsOfOneHour;
+      pdfMax[idx] /= totalSegmentsOfOneHour;
+      pdfMedian[idx] /= totalSegmentsOfOneHour;
+    }
+  }
+  /* Output PDF */
+  FILE *pdf_out = fopen ("pdf_out.txt", "w");
+  for (int i = 0; i < PDFBins; i++)
+  {
+    //fprintf(pdf_out, "%d ", maxdB - i);
+    for (int j = 0; j < freqLen; j++)
+    {
+      int idx = i * freqLen + j;
+      fprintf (pdf_out, "%lf ", pdfMean[idx]);
+    }
+    fprintf (pdf_out, "\n");
+  }
+  fclose (pdf_out);
   free (pdfMean);
   free (pdfMin);
   free (pdfMax);
