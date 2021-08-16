@@ -30,6 +30,10 @@ int overlapOfOneHour = 50;
 int lengthOfSegment  = 900;
 int overlapOfSegment = 75;
 
+/* PDF properties */
+int mindB = -200;
+int maxdB = -50;
+
 static int
 compare (const void *a, const void *b)
 {
@@ -345,8 +349,9 @@ processTrace (const char *mseedfile,
   /* Dimension reduction technique escribed in McMarana 2004 */
   /* Set the left and right frequency limit of each octave */
   double *leftFreqs, *rightFreqs;
-  int freqLen;
-  rv = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, lengthOfSegment);
+  int freqLen; /* i.e., length of center periods */
+  double smoothingWidthFactor = 1.25;
+  rv                          = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, lengthOfSegment, smoothingWidthFactor);
   if (rv != 0)
   {
     return -1;
@@ -417,6 +422,31 @@ processTrace (const char *mseedfile,
     psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
   }
 
+  /* Calculate PDF (power density function) */
+  int PDFBins       = abs (maxdB - mindB) + 1;
+  double *pdfMean   = (double *)malloc (sizeof (double) * freqLen * PDFBins);
+  double *pdfMin    = (double *)malloc (sizeof (double) * freqLen * PDFBins);
+  double *pdfMax    = (double *)malloc (sizeof (double) * freqLen * PDFBins);
+  double *pdfMedian = (double *)malloc (sizeof (double) * freqLen * PDFBins);
+  for (int i = 0; i < freqLen * PDFBins; i++)
+  {
+    pdfMean[i]   = 0;
+    pdfMin[i]    = 0;
+    pdfMax[i]    = 0;
+    pdfMedian[i] = 0;
+  }
+  for (int i = 0; i < freqLen; i++)
+  {
+    for (int j = 0; j < PDFBins; j++)
+    {
+    }
+  }
+  free (pdfMean);
+  free (pdfMin);
+  free (pdfMax);
+  free (pdfMedian);
+
+  /* Output Reduced PSD */
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {

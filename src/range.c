@@ -16,7 +16,7 @@ range (double *array, double sampleRate, int totalSamples)
 }
 
 int
-setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, double sampleRate, int windowLength)
+setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, double sampleRate, int windowLength, double smoothingWidthFactor)
 {
   double nyquiestFreq = sampleRate / 2.0f;
   double octaveStep   = pow (2, 0.125);
@@ -29,7 +29,7 @@ setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, doub
 
   /* long period (low frequency) */
   double fl;
-  double tl = 1.5f * ts;
+  double tl = smoothingWidthFactor * ts;
 
   double tr = (double)windowLength / 5.0f; /* longest resolvable preiod */
 
@@ -52,7 +52,7 @@ setLeftAndRightFreq (double **leftFreqs, double **rightFreqs, int *freqLen, doub
 
   /* Set the left and right frequency of each octave */
   ts = 1. / fh;
-  tl = 1.5f * ts;
+  tl = smoothingWidthFactor * ts;
   for (i = 0; i < count; i++)
   {
     fh               = 1. / ts;
