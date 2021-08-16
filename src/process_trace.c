@@ -54,7 +54,7 @@ binLocation (const double v, double start)
   return (int)(abs (round (v)) - abs (start));
 }
 
-static int
+int
 getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate)
 {
   uint32_t flags = 0;

@@ -13,7 +13,7 @@ main ()
   double sampleRate = 100.0f;
   int windowLength  = 900;
 
-  int rv = setLeftAndRightFreq (&left, &right, &freqLen, sampleRate, windowLength);
+  int rv = setLeftAndRightFreq (&left, &right, &freqLen, sampleRate, windowLength, 2.0f);
   assert (rv == 0);
 
   for (int i = 0; i < freqLen; i++)
