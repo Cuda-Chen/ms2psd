@@ -55,7 +55,7 @@ binLocation (const double v, double start)
 }
 
 int
-getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate)
+getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate, int *totalSegmentsOfOneHour)
 {
   uint32_t flags = 0;
   int8_t verbose = 0;
@@ -78,6 +78,17 @@ getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtim
   ms_nstime2timestr (mstl->last->latest, endtimestr, ISOMONTHDAY, NANO);
   printf ("%s - %s, %lf Hz\n", starttimestr, endtimestr, *samplingRate);
 #endif
+  *totalSegmentsOfOneHour  = 0;
+  int nextTimeStamp        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
+  nstime_t nextTimeStampNS = nextTimeStamp * NSECS;
+  nstime_t start           = mstl->traces->earliest;
+  nstime_t end             = start + ((nstime_t)lengthOfOneHour * NSECS);
+  while (end <= mstl->last->latest)
+  {
+    start += nextTimeStampNS;
+    end += nextTimeStampNS;
+    (*totalSegmentsOfOneHour)++;
+  }
 
   /* Clean up */
   if (mstl)
@@ -106,10 +117,22 @@ processTrace (const char *mseedfile,
   /* Get the start time and end time of this trace */
   nstime_t starttimeOfTrace;
   nstime_t endtimeOfTrace;
-  rv = getTraceProperties (mseedfile, &starttimeOfTrace, &endtimeOfTrace, &sampleRate);
+  int totalSegmentsOfOneHour = 1;
+  rv                         = getTraceProperties (mseedfile, &starttimeOfTrace, &endtimeOfTrace, &sampleRate, &totalSegmentsOfOneHour);
   if (rv != 0)
   {
     fprintf (stderr, "Cannot open input miniSEED for getting start time and end time\n");
+    return -1;
+  }
+  totalSegmentsOfOneHour = 1;
+
+  /* Set the left and right frequency limit of each octave */
+  double *leftFreqs, *rightFreqs;
+  int freqLen; /* i.e., length of center periods */
+  double smoothingWidthFactor = 1.25;
+  rv                          = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, lengthOfSegment, smoothingWidthFactor);
+  if (rv != 0)
+  {
     return -1;
   }
 
@@ -120,7 +143,6 @@ processTrace (const char *mseedfile,
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
-  int totalSegmentsOfOneHour = 1;
 
   /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
@@ -354,15 +376,6 @@ processTrace (const char *mseedfile,
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
   /* Dimension reduction technique escribed in McMarana 2004 */
-  /* Set the left and right frequency limit of each octave */
-  double *leftFreqs, *rightFreqs;
-  int freqLen; /* i.e., length of center periods */
-  double smoothingWidthFactor = 1.25;
-  rv                          = setLeftAndRightFreq (&leftFreqs, &rightFreqs, &freqLen, sampleRate, lengthOfSegment, smoothingWidthFactor);
-  if (rv != 0)
-  {
-    return -1;
-  }
 
   /* Set center frequency (geometric mean of low and high frequency) */
   double *centerPeriods = (double *)malloc (sizeof (double) * freqLen);

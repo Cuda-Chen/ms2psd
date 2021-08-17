@@ -2,7 +2,7 @@
 #define PROCESS_TRACE_H
 
 int
-getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate);
+getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate, int *totalSegmentsOfHour);
 
 int processTrace (const char *mseedfile,
                   float f1,
