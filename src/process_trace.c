@@ -78,15 +78,15 @@ getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtim
   ms_nstime2timestr (mstl->last->latest, endtimestr, ISOMONTHDAY, NANO);
   printf ("%s - %s, %lf Hz\n", starttimestr, endtimestr, *samplingRate);
 #endif
-  *totalSegmentsOfOneHour  = 0;
-  int nextTimeStamp        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
-  nstime_t nextTimeStampNS = nextTimeStamp * NSECS;
-  nstime_t start           = mstl->traces->earliest;
-  nstime_t end             = start + ((nstime_t)lengthOfOneHour * NSECS);
+  *totalSegmentsOfOneHour            = 0;
+  int nextTimeStampOfSegments        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
+  nstime_t nextTimeStampOfSegmentsNS = nextTimeStampOfSegments * NSECS;
+  nstime_t start                     = mstl->traces->earliest;
+  nstime_t end                       = start + ((nstime_t)lengthOfOneHour * NSECS);
   while (end <= mstl->last->latest)
   {
-    start += nextTimeStampNS;
-    end += nextTimeStampNS;
+    start += nextTimeStampOfSegmentsNS;
+    end += nextTimeStampOfSegmentsNS;
     (*totalSegmentsOfOneHour)++;
   }
 
@@ -144,50 +144,48 @@ processTrace (const char *mseedfile,
     double tl        = 1. / rightFreqs[i];
     centerPeriods[i] = sqrt (ts * tl);
   }
-
-  int nextTimeStamp;
-  nstime_t nextTimeStampNS;
-  nstime_t starttime;
-  nstime_t endtime;
+  /* PDF statistics */
+  int psdBinWindowSize                 = sampleRate * lengthOfSegment;
+  double *psdBinReducedMeanAggerated   = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMinAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMaxAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
+  int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
+  nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
+  nstime_t starttimeOfHours;
+  nstime_t endtimeOfHours;
 
   /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
-  nextTimeStamp        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
-  nextTimeStampNS      = nextTimeStamp * NSECS;
-  starttime            = starttimeOfTrace;
-  endtime              = starttime + ((nstime_t)lengthOfSegment * NSECS);
-  nstime_t endtimeTemp = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
+  int nextTimeStampOfSegments        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
+  nstime_t nextTimeStampOfSegmentsNS = nextTimeStampOfSegments * NSECS;
+  nstime_t starttimeOfSegments       = starttimeOfTrace;
+  nstime_t endtime                   = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
+  nstime_t endtimeTemp               = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
 #ifdef DEBUG
   MS3Selections *fooselections = NULL;
 #endif
 
   int segments = 0;
-  //nstime_t endtimeTick = endtime;
   while (endtime <= endtimeTemp)
   {
 #ifdef DEBUG
-    rv = ms3_addselect (&fooselections, sidpattern, starttime, endtime, pubversion);
+    rv = ms3_addselect (&fooselections, sidpattern, starttimeOfSegments, endtime, pubversion);
 #endif
-    starttime += nextTimeStampNS;
-    endtime += nextTimeStampNS;
-    //endtimeTick += nextTimeStampNS;
+    starttimeOfSegments += nextTimeStampOfSegmentsNS;
+    endtime += nextTimeStampOfSegmentsNS;
     segments++;
   }
-  int psdBinWindowSize = sampleRate * lengthOfSegment;
-  double *psdBin       = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
+  double *psdBin = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
   for (int i = 0; i < segments * psdBinWindowSize; i++)
   {
     psdBin[i] = 0.0f;
   }
-  double *psdBinReducedMeanAggerated   = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMinAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMaxAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *estimatedFreqs = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
 #ifdef DEBUG
   ms3_printselections (fooselections);
@@ -196,15 +194,15 @@ processTrace (const char *mseedfile,
 #endif
 
   // reset
-  starttime = starttimeOfTrace;
-  endtime   = starttime + ((nstime_t)lengthOfSegment * NSECS);
+  starttimeOfSegments = starttimeOfTrace;
+  endtime             = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
   /* Get data from input miniSEED file */
   fprintf (stderr, "It's segment time!");
   for (int a = 0; a < segments; a++)
   {
     MS3Selections *selection = NULL;
     data_t *data_temp;
-    rv = ms3_addselect (&selection, sidpattern, starttime, endtime, pubversion);
+    rv = ms3_addselect (&selection, sidpattern, starttimeOfSegments, endtime, pubversion);
     if (rv != 0)
     {
       printf ("selection failed\n");
@@ -349,8 +347,8 @@ processTrace (const char *mseedfile,
     free (psd);
     free (output);
 
-    starttime += nextTimeStampNS;
-    endtime += nextTimeStampNS;
+    starttimeOfSegments += nextTimeStampOfSegmentsNS;
+    endtime += nextTimeStampOfSegmentsNS;
     if (selection)
       ms3_freeselections (selection);
   }
