@@ -112,6 +112,7 @@ processTrace (const char *mseedfile,
   uint64_t totalSamples;
 
   int rv;
+  char *sidpattern   = "*";
   uint8_t pubversion = 0;
 
   /* Get the start time and end time of this trace */
@@ -154,21 +155,25 @@ processTrace (const char *mseedfile,
 
   /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
-  nextTimeStamp                = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
-  nextTimeStampNS              = nextTimeStamp * NSECS;
-  starttime                    = starttimeOfTrace;
-  endtime                      = starttime + ((nstime_t)lengthOfSegment * NSECS);
-  char *sidpattern             = "*";
+  nextTimeStamp        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
+  nextTimeStampNS      = nextTimeStamp * NSECS;
+  starttime            = starttimeOfTrace;
+  endtime              = starttime + ((nstime_t)lengthOfSegment * NSECS);
+  nstime_t endtimeTemp = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
+#ifdef DEBUG
   MS3Selections *fooselections = NULL;
+#endif
 
-  int segments         = 0;
-  nstime_t endtimeTick = endtime;
-  while (endtimeTick <= endtimeOfTrace)
+  int segments = 0;
+  //nstime_t endtimeTick = endtime;
+  while (endtime <= endtimeTemp)
   {
+#ifdef DEBUG
     rv = ms3_addselect (&fooselections, sidpattern, starttime, endtime, pubversion);
+#endif
     starttime += nextTimeStampNS;
     endtime += nextTimeStampNS;
-    endtimeTick += nextTimeStampNS;
+    //endtimeTick += nextTimeStampNS;
     segments++;
   }
   int psdBinWindowSize = sampleRate * lengthOfSegment;
@@ -177,13 +182,16 @@ processTrace (const char *mseedfile,
   {
     psdBin[i] = 0.0f;
   }
+  double *psdBinReducedMeanAggerated   = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMinAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMaxAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
 
 #ifdef DEBUG
   ms3_printselections (fooselections);
-#endif
-
   if (fooselections)
     ms3_freeselections (fooselections);
+#endif
 
   // reset
   starttime = starttimeOfTrace;
@@ -239,8 +247,8 @@ processTrace (const char *mseedfile,
     double complex *fftResult;
     fft (tapered, totalSamples, &fftResult);
 
-    double delta         = 1. / sampleRate;
-    double totalDuration = delta * totalSamples;
+    /*double delta         = 1. / sampleRate;
+    double totalDuration = delta * totalSamples;*/
 
     /* instrument response removal */
     /* Read SACPZ file */
@@ -441,6 +449,19 @@ processTrace (const char *mseedfile,
     psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
   }
 
+  /* Aggerate all reduced sample PSD */
+  for (int i = 0; i < totalSegmentsOfOneHour; i++)
+  {
+    for (int j = 0; j < freqLen; j++)
+    {
+      int idx                           = i * freqLen + j;
+      psdBinReducedMeanAggerated[idx]   = psdBinReducedMean[j];
+      psdBinReducedMinAggerated[idx]    = psdBinReducedMin[j];
+      psdBinReducedMaxAggerated[idx]    = psdBinReducedMax[j];
+      psdBinReducedMedianAggerated[idx] = psdBinReducedMedian[j];
+    }
+  }
+
   /* Calculate PDF (power density function) */
   int PDFBins       = abs (maxdB - mindB) + 1;
   double *pdfMean   = (double *)malloc (sizeof (double) * PDFBins * freqLen);
@@ -460,10 +481,10 @@ processTrace (const char *mseedfile,
     for (int j = 0; j < totalSegmentsOfOneHour; j++)
     {
       int idx = j * freqLen + i;
-      pdfMean[binLocation (psdBinReducedMean[idx], maxdB) * freqLen + i]++;
-      psdMin[binLocation (psdBinReducedMin[idx], maxdB) * freqLen + i]++;
-      psdMax[binLocation (psdBinReducedMax[idx], maxdB) * freqLen + i]++;
-      psdMedian[binLocation (psdBinReducedMedian[idx], maxdB) * freqLen + i]++;
+      pdfMean[binLocation (psdBinReducedMeanAggerated[idx], maxdB) * freqLen + i]++;
+      psdMin[binLocation (psdBinReducedMinAggerated[idx], maxdB) * freqLen + i]++;
+      psdMax[binLocation (psdBinReducedMaxAggerated[idx], maxdB) * freqLen + i]++;
+      psdMedian[binLocation (psdBinReducedMedianAggerated[idx], maxdB) * freqLen + i]++;
     }
   }
   /* Calculate the PDF, i.e., probability */
@@ -482,7 +503,6 @@ processTrace (const char *mseedfile,
   FILE *pdf_out = fopen ("pdf_out.txt", "w");
   for (int i = 0; i < PDFBins; i++)
   {
-    //fprintf(pdf_out, "%d ", maxdB - i);
     for (int j = 0; j < freqLen; j++)
     {
       int idx = i * freqLen + j;
@@ -495,6 +515,10 @@ processTrace (const char *mseedfile,
   free (pdfMin);
   free (pdfMax);
   free (pdfMedian);
+  free (psdBinReducedMeanAggerated);
+  free (psdBinReducedMinAggerated);
+  free (psdBinReducedMaxAggerated);
+  free (psdBinReducedMedianAggerated);
 
   /* Output Reduced PSD */
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
