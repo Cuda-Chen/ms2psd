@@ -186,6 +186,8 @@ processTrace (const char *mseedfile,
   double *psdBinReducedMinAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
   double *psdBinReducedMaxAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
   double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  double *estimatedFreqs = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
 #ifdef DEBUG
   ms3_printselections (fooselections);
@@ -387,9 +389,6 @@ processTrace (const char *mseedfile,
     psdMean[i]   = decibel (psdMean[i]);
     psdMedian[i] = decibel (psdMedian[i]);
   }
-
-  double *estimatedFreqs = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
   /* Dimension reduction technique escribed in McMarana 2004 */
 
