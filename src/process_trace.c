@@ -126,7 +126,7 @@ processTrace (const char *mseedfile,
   }
   totalSegmentsOfOneHour = 1;
 
-  /* Set the left and right frequency limit of each octave */
+  /* Set the left and right frequency limit of each octave used in dimension reduction part */
   double *leftFreqs, *rightFreqs;
   int freqLen; /* i.e., length of center periods */
   double smoothingWidthFactor = 1.25;
@@ -134,6 +134,14 @@ processTrace (const char *mseedfile,
   if (rv != 0)
   {
     return -1;
+  }
+  /* Set center frequency (geometric mean of low and high frequency) */
+  double *centerPeriods = (double *)malloc (sizeof (double) * freqLen);
+  for (int i = 0; i < freqLen; i++)
+  {
+    double ts        = 1. / leftFreqs[i];
+    double tl        = 1. / rightFreqs[i];
+    centerPeriods[i] = sqrt (ts * tl);
   }
 
   int nextTimeStamp;
@@ -376,15 +384,6 @@ processTrace (const char *mseedfile,
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
   /* Dimension reduction technique escribed in McMarana 2004 */
-
-  /* Set center frequency (geometric mean of low and high frequency) */
-  double *centerPeriods = (double *)malloc (sizeof (double) * freqLen);
-  for (int i = 0; i < freqLen; i++)
-  {
-    double ts        = 1. / leftFreqs[i];
-    double tl        = 1. / rightFreqs[i];
-    centerPeriods[i] = sqrt (ts * tl);
-  }
 
   /* Dimension reduction */
   double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
