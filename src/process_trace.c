@@ -155,169 +155,170 @@ processTrace (const char *mseedfile,
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
-  int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
-  nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
-  nstime_t starttimeOfHours;
-  nstime_t endtimeOfHours;
+  {
+    int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
+    nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
+    nstime_t starttimeOfHours       = starttimeOfTrace;
+    nstime_t endtimeOfHours         = starttimeOfHours + ((nstime_t)lengthOfOneHour * NSECS);
 
-  /* Split 1-hour long segment to 15-minute long segment
+    /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
-  int nextTimeStampOfSegments        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
-  nstime_t nextTimeStampOfSegmentsNS = nextTimeStampOfSegments * NSECS;
-  nstime_t starttimeOfSegments       = starttimeOfTrace;
-  nstime_t endtime                   = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
-  nstime_t endtimeTemp               = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
+    int nextTimeStampOfSegments        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
+    nstime_t nextTimeStampOfSegmentsNS = nextTimeStampOfSegments * NSECS;
+    nstime_t starttimeOfSegments       = starttimeOfTrace;
+    nstime_t endtime                   = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
+    nstime_t endtimeTemp               = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
 #ifdef DEBUG
-  MS3Selections *fooselections = NULL;
+    MS3Selections *fooselections = NULL;
 #endif
 
-  int segments = 0;
-  while (endtime <= endtimeTemp)
-  {
+    int segments = 0;
+    while (endtime <= endtimeTemp)
+    {
 #ifdef DEBUG
-    rv = ms3_addselect (&fooselections, sidpattern, starttimeOfSegments, endtime, pubversion);
+      rv = ms3_addselect (&fooselections, sidpattern, starttimeOfSegments, endtime, pubversion);
 #endif
-    starttimeOfSegments += nextTimeStampOfSegmentsNS;
-    endtime += nextTimeStampOfSegmentsNS;
-    segments++;
-  }
-  double *psdBin = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
-  for (int i = 0; i < segments * psdBinWindowSize; i++)
-  {
-    psdBin[i] = 0.0f;
-  }
+      starttimeOfSegments += nextTimeStampOfSegmentsNS;
+      endtime += nextTimeStampOfSegmentsNS;
+      segments++;
+    }
+    double *psdBin = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
+    for (int i = 0; i < segments * psdBinWindowSize; i++)
+    {
+      psdBin[i] = 0.0f;
+    }
 
 #ifdef DEBUG
-  ms3_printselections (fooselections);
-  if (fooselections)
-    ms3_freeselections (fooselections);
+    ms3_printselections (fooselections);
+    if (fooselections)
+      ms3_freeselections (fooselections);
 #endif
 
-  // reset
-  starttimeOfSegments = starttimeOfTrace;
-  endtime             = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
-  /* Get data from input miniSEED file */
-  fprintf (stderr, "It's segment time!");
-  for (int a = 0; a < segments; a++)
-  {
-    MS3Selections *selection = NULL;
-    data_t *data_temp;
-    rv = ms3_addselect (&selection, sidpattern, starttimeOfSegments, endtime, pubversion);
-    if (rv != 0)
+    // reset
+    starttimeOfSegments = starttimeOfTrace;
+    endtime             = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
+    /* Get data from input miniSEED file */
+    fprintf (stderr, "It's segment time!");
+    for (int a = 0; a < segments; a++)
     {
-      printf ("selection failed\n");
-      return rv;
-    }
-    rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
-    if (rv != 0)
-    {
-      return rv;
-    }
-    if (data_temp == NULL)
-    {
-      printf ("Input data read unsuccessfully\n");
-      return -1;
-    }
+      MS3Selections *selection = NULL;
+      data_t *data_temp;
+      rv = ms3_addselect (&selection, sidpattern, starttimeOfSegments, endtime, pubversion);
+      if (rv != 0)
+      {
+        printf ("selection failed\n");
+        return rv;
+      }
+      rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
+      if (rv != 0)
+      {
+        return rv;
+      }
+      if (data_temp == NULL)
+      {
+        printf ("Input data read unsuccessfully\n");
+        return -1;
+      }
 
-    /* Adjust input data length */
-    totalSamples = (int)(lengthOfSegment * sampleRate);
-    data_t *data = (data_t *)malloc (sizeof (data_t) * totalSamples);
-    for (int i = 0; i < totalSamples; i++)
-    {
-      data[i] = data_temp[i];
-    }
+      /* Adjust input data length */
+      totalSamples = (int)(lengthOfSegment * sampleRate);
+      data_t *data = (data_t *)malloc (sizeof (data_t) * totalSamples);
+      for (int i = 0; i < totalSamples; i++)
+      {
+        data[i] = data_temp[i];
+      }
 
-    /* Demean */
-    float mean, std;
-    getMeanAndSD (data, totalSamples, &mean, &std);
-    for (int i = 0; i < totalSamples; i++)
-    {
-      data[i] -= mean;
-    }
-    /* Detrend */
-    data_t *detrended;
-    detrend (data, (int)totalSamples, &detrended);
-    /* First taper the signal with 5%-cosine-window */
-    float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
-    cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
-    double *tapered = (double *)malloc (sizeof (double) * totalSamples);
-    for (int i = 0; i < totalSamples; i++)
-      tapered[i] = (double)taperedSignal[i];
-    /* Then execute FFT */
-    double complex *fftResult;
-    fft (tapered, totalSamples, &fftResult);
+      /* Demean */
+      float mean, std;
+      getMeanAndSD (data, totalSamples, &mean, &std);
+      for (int i = 0; i < totalSamples; i++)
+      {
+        data[i] -= mean;
+      }
+      /* Detrend */
+      data_t *detrended;
+      detrend (data, (int)totalSamples, &detrended);
+      /* First taper the signal with 5%-cosine-window */
+      float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
+      cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
+      double *tapered = (double *)malloc (sizeof (double) * totalSamples);
+      for (int i = 0; i < totalSamples; i++)
+        tapered[i] = (double)taperedSignal[i];
+      /* Then execute FFT */
+      double complex *fftResult;
+      fft (tapered, totalSamples, &fftResult);
 
-    /*double delta         = 1. / sampleRate;
+      /*double delta         = 1. / sampleRate;
     double totalDuration = delta * totalSamples;*/
 
-    /* instrument response removal */
-    /* Read SACPZ file */
-    //const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
-    double complex *poles, *zeros;
-    int npoles, nzeros;
-    double constant;
-    parse_sacpz (sacpzfile,
-                 &poles, &npoles,
-                 &zeros, &nzeros,
-                 &constant);
-    /* Get frequency response */
-    double *freq;
-    double complex *freqResponse;
-    get_freq_response (poles, npoles,
-                       zeros, nzeros,
-                       constant, sampleRate, totalSamples,
-                       &freq, &freqResponse, totype);
+      /* instrument response removal */
+      /* Read SACPZ file */
+      //const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
+      double complex *poles, *zeros;
+      int npoles, nzeros;
+      double constant;
+      parse_sacpz (sacpzfile,
+                   &poles, &npoles,
+                   &zeros, &nzeros,
+                   &constant);
+      /* Get frequency response */
+      double *freq;
+      double complex *freqResponse;
+      get_freq_response (poles, npoles,
+                         zeros, nzeros,
+                         constant, sampleRate, totalSamples,
+                         &freq, &freqResponse, totype);
 
-    /* Apply freqyency response removal */
-    remove_response (fftResult, freqResponse, totalSamples);
+      /* Apply freqyency response removal */
+      remove_response (fftResult, freqResponse, totalSamples);
 
-    /* band-pass filtering to prevent overamplification */
-    double *taper_window;
-    sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, &taper_window);
-    for (int i = 0; i < totalSamples; i++)
-    {
-      fftResult[i] *= taper_window[i];
-    }
+      /* band-pass filtering to prevent overamplification */
+      double *taper_window;
+      sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, &taper_window);
+      for (int i = 0; i < totalSamples; i++)
+      {
+        fftResult[i] *= taper_window[i];
+      }
 
-    /* Apply iFFT */
-    double *output;
-    ifft (fftResult, totalSamples, &output);
-    /* Output signal with instrument response removed */
-    FILE *out = fopen (outputFile, "w");
-    if (out == NULL)
-    {
-      fprintf (stderr, "Cannot output signal output file.\n");
-      return -1;
-    }
-    for (int i = 0; i < totalSamples; i++)
-    {
-      fprintf (out, "%e\n", output[i]);
-    }
-    fclose (out);
+      /* Apply iFFT */
+      double *output;
+      ifft (fftResult, totalSamples, &output);
+      /* Output signal with instrument response removed */
+      FILE *out = fopen (outputFile, "w");
+      if (out == NULL)
+      {
+        fprintf (stderr, "Cannot output signal output file.\n");
+        return -1;
+      }
+      for (int i = 0; i < totalSamples; i++)
+      {
+        fprintf (out, "%e\n", output[i]);
+      }
+      fclose (out);
 
-    /* Get power spetral density (PSD) of this segment */
-    double *psd;
+      /* Get power spetral density (PSD) of this segment */
+      double *psd;
 
-    /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,
+      /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,
    * we do not do such operation as this produces resaonable result
    * Yet I still reverse this block for future use
    */
-    /*for(int i = 0; i < totalSamples; i++) {
+      /*for(int i = 0; i < totalSamples; i++) {
       fftResult[i] /= (1. / sampleRate);
   }*/
 
-    rv = calculatePSD (fftResult, totalSamples, sampleRate, &psd);
-    if (rv != 0)
-    {
-      fprintf (stderr, "Something wrong in calculate PSD procedure,\n");
-      return -1;
-    }
+      rv = calculatePSD (fftResult, totalSamples, sampleRate, &psd);
+      if (rv != 0)
+      {
+        fprintf (stderr, "Something wrong in calculate PSD procedure,\n");
+        return -1;
+      }
 
-    for (int i = 0; i < psdBinWindowSize; i++)
-    {
-      int psdBinIndex         = a * psdBinWindowSize + i;
-      *(psdBin + psdBinIndex) = *(psd + i);
-    }
+      for (int i = 0; i < psdBinWindowSize; i++)
+      {
+        int psdBinIndex         = a * psdBinWindowSize + i;
+        *(psdBin + psdBinIndex) = *(psd + i);
+      }
 #if 0
   /* Set unit to decibel (dB) */
   for (int i = 0; i < totalSamples; i++)
@@ -332,131 +333,146 @@ processTrace (const char *mseedfile,
   fclose (psd_out);
 #endif
 
-    /* Free allocated objects */
-    free (data_temp);
-    free (data);
-    free (detrended);
-    free (taperedSignal);
-    free (tapered);
-    free (fftResult);
-    free (poles);
-    free (zeros);
-    free (freq);
-    free (freqResponse);
-    free (taper_window);
-    free (psd);
-    free (output);
+      /* Free allocated objects */
+      free (data_temp);
+      free (data);
+      free (detrended);
+      free (taperedSignal);
+      free (tapered);
+      free (fftResult);
+      free (poles);
+      free (zeros);
+      free (freq);
+      free (freqResponse);
+      free (taper_window);
+      free (psd);
+      free (output);
 
-    starttimeOfSegments += nextTimeStampOfSegmentsNS;
-    endtime += nextTimeStampOfSegmentsNS;
-    if (selection)
-      ms3_freeselections (selection);
-  }
-
-  /* PSD properties (min, max, mean, median) summary */
-  double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdArr    = (double *)malloc (sizeof (double) * segments);
-  for (int i = 0; i < psdBinWindowSize; i++)
-    psdMean[i] = 0.0f;
-  for (int i = 0; i < psdBinWindowSize; i++)
-  {
-    for (int j = 0; j < segments; j++)
-    {
-      int psdBinIndex = j * psdBinWindowSize + i;
-      *(psdMean + i) += *(psdBin + psdBinIndex);
-      *(psdArr + j) = *(psdBin + psdBinIndex);
+      starttimeOfSegments += nextTimeStampOfSegmentsNS;
+      endtime += nextTimeStampOfSegmentsNS;
+      if (selection)
+        ms3_freeselections (selection);
     }
 
-    qsort (psdArr, segments, sizeof (psdArr[0]), compare);
-    psdMin[i]    = psdArr[0];
-    psdMax[i]    = psdArr[segments - 1];
-    psdMedian[i] = (segments % 2 == 0) ? ((psdArr[segments / 2 - 1] + psdArr[segments / 2]) / 2.0) : (psdArr[segments / 2]);
-  }
-  /* Mean calculation */
-  for (int i = 0; i < psdBinWindowSize; i++)
-    psdMean[i] /= (double)segments;
-
-  /* Set unit to decibel (dB) */
-  for (int i = 0; i < psdBinWindowSize; i++)
-  {
-    psdMin[i]    = decibel (psdMin[i]);
-    psdMax[i]    = decibel (psdMax[i]);
-    psdMean[i]   = decibel (psdMean[i]);
-    psdMedian[i] = decibel (psdMedian[i]);
-  }
-
-  /* Dimension reduction technique escribed in McMarana 2004 */
-
-  /* Dimension reduction */
-  double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
-  for (int i = 0; i < segments * freqLen; i++)
-  {
-    psdBinReduced[i] = 0.0f;
-  }
-  for (int i = 0; i < segments; i++)
-  {
-    for (int j = 0; j < freqLen; j++)
+    /* PSD properties (min, max, mean, median) summary */
+    double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+    double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+    double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
+    double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
+    double *psdArr    = (double *)malloc (sizeof (double) * segments);
+    for (int i = 0; i < psdBinWindowSize; i++)
+      psdMean[i] = 0.0f;
+    for (int i = 0; i < psdBinWindowSize; i++)
     {
-      int count              = 0;
-      int psdBinReducedIndex = i * freqLen + j;
-      for (int k = 0; k < psdBinWindowSize; k++)
+      for (int j = 0; j < segments; j++)
       {
-        if ((leftFreqs[j] >= estimatedFreqs[k]) && (estimatedFreqs[k] >= rightFreqs[j]))
-        {
-          int psdBinIndex = i * psdBinWindowSize + k;
-          psdBinReduced[psdBinReducedIndex] += psdBin[psdBinIndex];
-          count++;
-        }
+        int psdBinIndex = j * psdBinWindowSize + i;
+        *(psdMean + i) += *(psdBin + psdBinIndex);
+        *(psdArr + j) = *(psdBin + psdBinIndex);
       }
 
-      psdBinReduced[psdBinReducedIndex] /= (double)count;
+      qsort (psdArr, segments, sizeof (psdArr[0]), compare);
+      psdMin[i]    = psdArr[0];
+      psdMax[i]    = psdArr[segments - 1];
+      psdMedian[i] = (segments % 2 == 0) ? ((psdArr[segments / 2 - 1] + psdArr[segments / 2]) / 2.0) : (psdArr[segments / 2]);
     }
-  }
+    /* Mean calculation */
+    for (int i = 0; i < psdBinWindowSize; i++)
+      psdMean[i] /= (double)segments;
 
-  /* Statistics with dimension reduction */
-  double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedArr    = (double *)malloc (sizeof (double) * segments);
-  for (int i = 0; i < freqLen; i++)
-  {
-    psdBinReducedMean[i] = 0.0f;
-  }
-  for (int i = 0; i < freqLen; i++)
-  {
-    for (int j = 0; j < segments; j++)
+    /* Set unit to decibel (dB) */
+    for (int i = 0; i < psdBinWindowSize; i++)
     {
-      int psdBinReducedIndex = j * freqLen + i;
-      psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
-      psdBinReducedArr[j] = psdBinReduced[psdBinReducedIndex];
+      psdMin[i]    = decibel (psdMin[i]);
+      psdMax[i]    = decibel (psdMax[i]);
+      psdMean[i]   = decibel (psdMean[i]);
+      psdMedian[i] = decibel (psdMedian[i]);
     }
-    qsort (psdBinReducedArr, segments, sizeof (psdBinReducedArr[0]), compare);
-    psdBinReducedMin[i]    = psdBinReducedArr[0];
-    psdBinReducedMax[i]    = psdBinReducedArr[segments - 1];
-    psdBinReducedMedian[i] = (segments % 2 == 0) ? ((psdBinReducedArr[segments / 2 - 1] + psdBinReducedArr[segments / 2]) / 2.0) : (psdBinReducedArr[segments / 2]);
-    psdBinReducedMean[i] /= (double)segments;
 
-    psdBinReducedMean[i]   = decibel (psdBinReducedMean[i]);
-    psdBinReducedMin[i]    = decibel (psdBinReducedMin[i]);
-    psdBinReducedMax[i]    = decibel (psdBinReducedMax[i]);
-    psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
-  }
+    /* Dimension reduction technique escribed in McMarana 2004 */
 
-  /* Aggerate all reduced sample PSD */
-  for (int i = 0; i < totalSegmentsOfOneHour; i++)
-  {
-    for (int j = 0; j < freqLen; j++)
+    /* Dimension reduction */
+    double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
+    for (int i = 0; i < segments * freqLen; i++)
     {
-      int idx                           = i * freqLen + j;
-      psdBinReducedMeanAggerated[idx]   = psdBinReducedMean[j];
-      psdBinReducedMinAggerated[idx]    = psdBinReducedMin[j];
-      psdBinReducedMaxAggerated[idx]    = psdBinReducedMax[j];
-      psdBinReducedMedianAggerated[idx] = psdBinReducedMedian[j];
+      psdBinReduced[i] = 0.0f;
     }
+    for (int i = 0; i < segments; i++)
+    {
+      for (int j = 0; j < freqLen; j++)
+      {
+        int count              = 0;
+        int psdBinReducedIndex = i * freqLen + j;
+        for (int k = 0; k < psdBinWindowSize; k++)
+        {
+          if ((leftFreqs[j] >= estimatedFreqs[k]) && (estimatedFreqs[k] >= rightFreqs[j]))
+          {
+            int psdBinIndex = i * psdBinWindowSize + k;
+            psdBinReduced[psdBinReducedIndex] += psdBin[psdBinIndex];
+            count++;
+          }
+        }
+
+        psdBinReduced[psdBinReducedIndex] /= (double)count;
+      }
+    }
+
+    free (psdBin);
+    free (psdMin);
+    free (psdMax);
+    free (psdMean);
+    free (psdMedian);
+    free (psdArr);
+    free (estimatedFreqs);
+
+    /* Statistics with dimension reduction */
+    double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
+    double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
+    double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
+    double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
+    double *psdBinReducedArr    = (double *)malloc (sizeof (double) * segments);
+    for (int i = 0; i < freqLen; i++)
+    {
+      psdBinReducedMean[i] = 0.0f;
+    }
+    for (int i = 0; i < freqLen; i++)
+    {
+      for (int j = 0; j < segments; j++)
+      {
+        int psdBinReducedIndex = j * freqLen + i;
+        psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
+        psdBinReducedArr[j] = psdBinReduced[psdBinReducedIndex];
+      }
+      qsort (psdBinReducedArr, segments, sizeof (psdBinReducedArr[0]), compare);
+      psdBinReducedMin[i]    = psdBinReducedArr[0];
+      psdBinReducedMax[i]    = psdBinReducedArr[segments - 1];
+      psdBinReducedMedian[i] = (segments % 2 == 0) ? ((psdBinReducedArr[segments / 2 - 1] + psdBinReducedArr[segments / 2]) / 2.0) : (psdBinReducedArr[segments / 2]);
+      psdBinReducedMean[i] /= (double)segments;
+
+      psdBinReducedMean[i]   = decibel (psdBinReducedMean[i]);
+      psdBinReducedMin[i]    = decibel (psdBinReducedMin[i]);
+      psdBinReducedMax[i]    = decibel (psdBinReducedMax[i]);
+      psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
+    }
+
+    /* Aggerate all reduced sample PSD */
+    for (int i = 0; i < totalSegmentsOfOneHour; i++)
+    {
+      for (int j = 0; j < freqLen; j++)
+      {
+        int idx                           = i * freqLen + j;
+        psdBinReducedMeanAggerated[idx]   = psdBinReducedMean[j];
+        psdBinReducedMinAggerated[idx]    = psdBinReducedMin[j];
+        psdBinReducedMaxAggerated[idx]    = psdBinReducedMax[j];
+        psdBinReducedMedianAggerated[idx] = psdBinReducedMedian[j];
+      }
+    }
+    free (psdBinReduced);
+    free (psdBinReducedMean);
+    free (psdBinReducedMin);
+    free (psdBinReducedMax);
+    free (psdBinReducedMedian);
+    free (psdBinReducedArr);
   }
 
   /* Calculate PDF (power density function) */
@@ -479,9 +495,9 @@ processTrace (const char *mseedfile,
     {
       int idx = j * freqLen + i;
       pdfMean[binLocation (psdBinReducedMeanAggerated[idx], maxdB) * freqLen + i]++;
-      psdMin[binLocation (psdBinReducedMinAggerated[idx], maxdB) * freqLen + i]++;
-      psdMax[binLocation (psdBinReducedMaxAggerated[idx], maxdB) * freqLen + i]++;
-      psdMedian[binLocation (psdBinReducedMedianAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMin[binLocation (psdBinReducedMinAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMax[binLocation (psdBinReducedMaxAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMedian[binLocation (psdBinReducedMedianAggerated[idx], maxdB) * freqLen + i]++;
     }
   }
   /* Calculate the PDF, i.e., probability */
@@ -518,65 +534,27 @@ processTrace (const char *mseedfile,
   free (psdBinReducedMedianAggerated);
 
   /* Output Reduced PSD */
+#if 0
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
     fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[i], psdBinReducedMean[i], psdBinReducedMin[i], psdBinReducedMax[i], psdBinReducedMedian[i]);
   }
   fclose (psd_reduced_out);
-#ifdef SHOWEACHTRACE
-  for (int i = 0; i < segments; i++)
-  {
-    char psd_file[50];
-    sprintf (psd_file, "psd_reduced_trace_%d.txt", i);
-    FILE *out = fopen (psd_file, "w");
-    for (int j = 0; j < freqLen; j++)
-    {
-      int index = i * freqLen + j;
-      fprintf (out, "%e %e\n", centerPeriods[j], *(psdBinReduced + index));
-    }
-    fclose (out);
-  }
 #endif
   free (leftFreqs);
   free (rightFreqs);
   free (centerPeriods);
-  free (psdBinReduced);
-  free (psdBinReducedMean);
-  free (psdBinReducedMin);
-  free (psdBinReducedMax);
-  free (psdBinReducedMedian);
-  free (psdBinReducedArr);
 
   /* Output PSD */
+#if 0
   FILE *psd_out = fopen ("psd_out.txt", "w");
   for (int i = 0; i < psdBinWindowSize / 2 + 1; i++)
   {
     fprintf (psd_out, "%e %e %e %e %e\n", estimatedFreqs[i], psdMean[i], psdMin[i], psdMax[i], psdMedian[i]);
   }
   fclose (psd_out);
-#ifdef SHOWEACHTRACE
-  for (int i = 0; i < segments; i++)
-  {
-    char psd_file[50];
-    sprintf (psd_file, "psd_trace_%d.txt", i);
-    FILE *out = fopen (psd_file, "w");
-    for (int j = 0; j < psdBinWindowSize / 2 + 1; j++)
-    {
-      int index = i * psdBinWindowSize + j;
-      fprintf (out, "%e %e\n", estimatedFreqs[j], *(psdBin + index));
-    }
-    fclose (out);
-  }
 #endif
-
-  free (psdBin);
-  free (psdMin);
-  free (psdMax);
-  free (psdMean);
-  free (psdMedian);
-  free (psdArr);
-  free (estimatedFreqs);
 
   return 0;
 }
