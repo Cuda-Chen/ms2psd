@@ -198,7 +198,7 @@ processTrace (const char *mseedfile,
     starttimeOfThisSegment = starttimeOfTrace;
     endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
-    fprintf (stderr, "It's segment time!"); /* magic for let ms3_readtracelist_selection work */
+    fprintf (stderr, "It's segment time!\n"); /* magic for let ms3_readtracelist_selection work */
     for (int a = 0; a < segments; a++)
     {
       MS3Selections *selection = NULL;
@@ -209,6 +209,7 @@ processTrace (const char *mseedfile,
         printf ("selection failed\n");
         return rv;
       }
+      ms3_printselections (selection);
       rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
       if (rv != 0)
       {
@@ -453,6 +454,7 @@ processTrace (const char *mseedfile,
     /* Aggerate all reduced sample PSD */
     {
       int i = traceIdx;
+      printf ("%d\n", traceIdx);
       for (int j = 0; j < freqLen; j++)
       {
         int idx                           = i * freqLen + j;
@@ -526,6 +528,20 @@ processTrace (const char *mseedfile,
   free (pdfMin);
   free (pdfMax);
   free (pdfMedian);
+  FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
+  for (int i = 0; i < totalSegmentsOfOneHour; i++)
+  {
+    for (int j = 0; j < freqLen; j++)
+    {
+      int idx = i * freqLen + j;
+      fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[j],
+               psdBinReducedMeanAggerated[idx],
+               psdBinReducedMinAggerated[idx],
+               psdBinReducedMaxAggerated[idx],
+               psdBinReducedMedianAggerated[idx]);
+    }
+  }
+  fclose (psd_reduced_out);
   free (psdBinReducedMeanAggerated);
   free (psdBinReducedMinAggerated);
   free (psdBinReducedMaxAggerated);
