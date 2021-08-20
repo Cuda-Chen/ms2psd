@@ -127,9 +127,9 @@ processTrace (const char *mseedfile,
   }
   int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
   nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
-  nstime_t starttimeOfHours       = starttimeOfTrace;
-  nstime_t endtimeOfHours         = starttimeOfHours + ((nstime_t)lengthOfOneHour * NSECS);
-  totalSegmentsOfOneHour          = 1;
+  nstime_t starttimeOfThisHour    = starttimeOfTrace;
+  nstime_t endtimeOfThisHour      = starttimeOfThisHour + ((nstime_t)lengthOfOneHour * NSECS);
+  //totalSegmentsOfOneHour          = 1;
 
   /* Set the left and right frequency limit of each octave used in dimension reduction part */
   double *leftFreqs, *rightFreqs;
@@ -165,21 +165,21 @@ processTrace (const char *mseedfile,
    * with 75% overlapping for reducing data variance */
     int nextTimeStampOfSegments        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
     nstime_t nextTimeStampOfSegmentsNS = nextTimeStampOfSegments * NSECS;
-    nstime_t starttimeOfSegments       = starttimeOfTrace;
-    nstime_t endtime                   = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
-    nstime_t endtimeTemp               = starttimeOfTrace + ((nstime_t)lengthOfOneHour * NSECS);
+    nstime_t starttimeOfThisSegment    = starttimeOfThisHour;
+    nstime_t endtimeOfThisSegment      = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
+    nstime_t endtimeTemp               = starttimeOfThisHour + ((nstime_t)lengthOfOneHour * NSECS);
 #ifdef DEBUG
     MS3Selections *fooselections = NULL;
 #endif
 
     int segments = 0;
-    while (endtime <= endtimeTemp)
+    while (endtimeOfThisSegment <= endtimeTemp)
     {
 #ifdef DEBUG
-      rv = ms3_addselect (&fooselections, sidpattern, starttimeOfSegments, endtime, pubversion);
+      rv = ms3_addselect (&fooselections, sidpattern, starttimeOfThisSegment, endtimeOfThisSegment, pubversion);
 #endif
-      starttimeOfSegments += nextTimeStampOfSegmentsNS;
-      endtime += nextTimeStampOfSegmentsNS;
+      starttimeOfThisSegment += nextTimeStampOfSegmentsNS;
+      endtimeOfThisSegment += nextTimeStampOfSegmentsNS;
       segments++;
     }
     double *psdBin = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
@@ -194,16 +194,16 @@ processTrace (const char *mseedfile,
       ms3_freeselections (fooselections);
 #endif
 
-    // reset
-    starttimeOfSegments = starttimeOfTrace;
-    endtime             = starttimeOfSegments + ((nstime_t)lengthOfSegment * NSECS);
+    // Reset start time and end time to the first 15-minute long segment
+    starttimeOfThisSegment = starttimeOfTrace;
+    endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
-    fprintf (stderr, "It's segment time!");
+    fprintf (stderr, "It's segment time!"); /* magic for let ms3_readtracelist_selection work */
     for (int a = 0; a < segments; a++)
     {
       MS3Selections *selection = NULL;
       data_t *data_temp;
-      rv = ms3_addselect (&selection, sidpattern, starttimeOfSegments, endtime, pubversion);
+      rv = ms3_addselect (&selection, sidpattern, starttimeOfThisSegment, endtimeOfThisSegment, pubversion);
       if (rv != 0)
       {
         printf ("selection failed\n");
@@ -247,9 +247,6 @@ processTrace (const char *mseedfile,
       /* Then execute FFT */
       double complex *fftResult;
       fft (tapered, totalSamples, &fftResult);
-
-      /*double delta         = 1. / sampleRate;
-    double totalDuration = delta * totalSamples;*/
 
       /* instrument response removal */
       /* Read SACPZ file */
@@ -347,8 +344,8 @@ processTrace (const char *mseedfile,
       free (psd);
       free (output);
 
-      starttimeOfSegments += nextTimeStampOfSegmentsNS;
-      endtime += nextTimeStampOfSegmentsNS;
+      starttimeOfThisSegment += nextTimeStampOfSegmentsNS;
+      endtimeOfThisSegment += nextTimeStampOfSegmentsNS;
       if (selection)
         ms3_freeselections (selection);
     }
@@ -422,7 +419,6 @@ processTrace (const char *mseedfile,
     free (psdMean);
     free (psdMedian);
     free (psdArr);
-    free (estimatedFreqs);
 
     /* Statistics with dimension reduction */
     double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
@@ -472,6 +468,9 @@ processTrace (const char *mseedfile,
     free (psdBinReducedMax);
     free (psdBinReducedMedian);
     free (psdBinReducedArr);
+
+    starttimeOfThisHour += nextTimeStampOfHoursNS;
+    endtimeOfThisHour += nextTimeStampOfHoursNS;
   }
 
   /* Calculate PDF (power density function) */
@@ -531,6 +530,7 @@ processTrace (const char *mseedfile,
   free (psdBinReducedMinAggerated);
   free (psdBinReducedMaxAggerated);
   free (psdBinReducedMedianAggerated);
+  free (estimatedFreqs);
 
   /* Output Reduced PSD */
 #if 0
