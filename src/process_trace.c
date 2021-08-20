@@ -125,7 +125,11 @@ processTrace (const char *mseedfile,
     fprintf (stderr, "Cannot open input miniSEED for getting start time and end time\n");
     return -1;
   }
-  totalSegmentsOfOneHour = 1;
+  int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
+  nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
+  nstime_t starttimeOfHours       = starttimeOfTrace;
+  nstime_t endtimeOfHours         = starttimeOfHours + ((nstime_t)lengthOfOneHour * NSECS);
+  totalSegmentsOfOneHour          = 1;
 
   /* Set the left and right frequency limit of each octave used in dimension reduction part */
   double *leftFreqs, *rightFreqs;
@@ -155,12 +159,8 @@ processTrace (const char *mseedfile,
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
+  for (int traceIdx = 0; traceIdx < totalSegmentsOfOneHour; traceIdx++)
   {
-    int nextTimeStampOfHours        = lengthOfOneHour - (lengthOfOneHour * overlapOfOneHour / 100);
-    nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
-    nstime_t starttimeOfHours       = starttimeOfTrace;
-    nstime_t endtimeOfHours         = starttimeOfHours + ((nstime_t)lengthOfOneHour * NSECS);
-
     /* Split 1-hour long segment to 15-minute long segment
    * with 75% overlapping for reducing data variance */
     int nextTimeStampOfSegments        = lengthOfSegment - (lengthOfSegment * overlapOfSegment / 100);
@@ -253,7 +253,6 @@ processTrace (const char *mseedfile,
 
       /* instrument response removal */
       /* Read SACPZ file */
-      //const char *sacpzfile = "./tests/SAC_PZs_TW_NACB_BHZ__2007.254.07.25.20.0000_99999.9999.24.60.60.99999";
       double complex *poles, *zeros;
       int npoles, nzeros;
       double constant;
@@ -456,8 +455,8 @@ processTrace (const char *mseedfile,
     }
 
     /* Aggerate all reduced sample PSD */
-    for (int i = 0; i < totalSegmentsOfOneHour; i++)
     {
+      int i = traceIdx;
       for (int j = 0; j < freqLen; j++)
       {
         int idx                           = i * freqLen + j;
