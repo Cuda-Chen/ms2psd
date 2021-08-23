@@ -209,7 +209,7 @@ processTrace (const char *mseedfile,
         printf ("selection failed\n");
         return rv;
       }
-      ms3_printselections (selection);
+      //ms3_printselections (selection);
       rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
       if (rv != 0)
       {
@@ -557,6 +557,12 @@ processTrace (const char *mseedfile,
   }
   fclose (psd_reduced_out);
 #endif
+  /* Output center periods */
+  FILE *center_periods_out = fopen("center_periods_out.txt", "w");
+  for(int i = 0; i < freqLen; i++) {
+      fprintf(center_periods_out, "%e\n", centerPeriods[i]);
+  }
+  fclose(center_periods_out);
   free (leftFreqs);
   free (rightFreqs);
   free (centerPeriods);
