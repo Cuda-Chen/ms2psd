@@ -37,7 +37,7 @@ getMeanAndSD (float *data, uint64_t dataSize, float *_mean, float *_SD)
   {
     SD += pow (data[i] - mean, 2);
   }
-#ifdef DEBUG
+#if 0
   printf ("mean: %lf / %" PRId64 " = %lf\n", sum, dataSize, mean);
 #endif
   *_mean = round (mean * 100) / 100;

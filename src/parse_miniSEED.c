@@ -43,7 +43,7 @@ parse_miniSEED (const char *mseedfile, MS3Selections *selection, data_t **data, 
       totalSamples += seg->samplecnt;
       seg = seg->next;
     }
-#ifdef DEBUG
+#if 0
     printf ("estimated samples of this trace: %" PRId64 "\n", totalSamples);
 #endif
 

@@ -195,7 +195,7 @@ processTrace (const char *mseedfile,
 #endif
 
     // Reset start time and end time to the first 15-minute long segment
-    starttimeOfThisSegment = starttimeOfTrace;
+    starttimeOfThisSegment = starttimeOfThisHour;
     endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
     fprintf (stderr, "It's segment time!\n"); /* magic for let ms3_readtracelist_selection work */
