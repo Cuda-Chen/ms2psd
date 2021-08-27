@@ -316,19 +316,6 @@ processTrace (const char *mseedfile,
         int psdBinIndex         = a * psdBinWindowSize + i;
         *(psdBin + psdBinIndex) = *(psd + i);
       }
-#if 0
-  /* Set unit to decibel (dB) */
-  for (int i = 0; i < totalSamples; i++)
-  {
-    psd[i] = 10 * log10 (psd[i]);
-  }
-  FILE *psd_out = fopen ("psd_out.txt", "w");
-  for (int i = 0; i < totalSamples; i++)
-  {
-    fprintf (psd_out, "%e %e\n", freq[i], psd[i]);
-  }
-  fclose (psd_out);
-#endif
 
       /* Free allocated objects */
       free (data_temp);
@@ -387,7 +374,6 @@ processTrace (const char *mseedfile,
     }
 
     /* Dimension reduction technique escribed in McMarana 2004 */
-
     /* Dimension reduction */
     double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
     for (int i = 0; i < segments * freqLen; i++)
@@ -548,34 +534,16 @@ processTrace (const char *mseedfile,
   free (psdBinReducedMedianAggerated);
   free (estimatedFreqs);
 
-  /* Output Reduced PSD */
-#if 0
-  FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
+  /* Output center periods */
+  FILE *center_periods_out = fopen ("center_periods_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
-    fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[i], psdBinReducedMean[i], psdBinReducedMin[i], psdBinReducedMax[i], psdBinReducedMedian[i]);
+    fprintf (center_periods_out, "%e\n", centerPeriods[i]);
   }
-  fclose (psd_reduced_out);
-#endif
-  /* Output center periods */
-  FILE *center_periods_out = fopen("center_periods_out.txt", "w");
-  for(int i = 0; i < freqLen; i++) {
-      fprintf(center_periods_out, "%e\n", centerPeriods[i]);
-  }
-  fclose(center_periods_out);
+  fclose (center_periods_out);
   free (leftFreqs);
   free (rightFreqs);
   free (centerPeriods);
-
-  /* Output PSD */
-#if 0
-  FILE *psd_out = fopen ("psd_out.txt", "w");
-  for (int i = 0; i < psdBinWindowSize / 2 + 1; i++)
-  {
-    fprintf (psd_out, "%e %e %e %e %e\n", estimatedFreqs[i], psdMean[i], psdMin[i], psdMax[i], psdMedian[i]);
-  }
-  fclose (psd_out);
-#endif
 
   return 0;
 }
