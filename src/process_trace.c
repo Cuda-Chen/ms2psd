@@ -222,12 +222,28 @@ processTrace (const char *mseedfile,
       }
 
       /* Adjust input data length */
-      totalSamples = (int)(lengthOfSegment * sampleRate);
-      data_t *data = (data_t *)malloc (sizeof (data_t) * totalSamples);
-      for (int i = 0; i < totalSamples; i++)
+      int desiredSamples = (int)(lengthOfSegment * sampleRate);
+      data_t *data   = (data_t *)malloc (sizeof (data_t) * desiredSamples);
+      /* Padding if input data less than 15-minute */
+      if (totalSamples < desiredSamples)
       {
-        data[i] = data_temp[i];
+        for (int i = 0; i < totalSamples; i++)
+        {
+          data[i] = data_temp[i];
+        }
+        for (int i = totalSamples; i < desiredSamples; i++)
+        {
+          data[i] = 0.0f;
+        }
       }
+      else
+      {
+        for (int i = 0; i < desiredSamples; i++)
+        {
+          data[i] = data_temp[i];
+        }
+      }
+      totalSamples = desiredSamples;
 
       /* Demean */
       float mean, std;
