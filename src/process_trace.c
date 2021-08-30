@@ -227,7 +227,6 @@ processTrace (const char *mseedfile,
     starttimeOfThisSegment = starttimeOfThisHour;
     endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
-    //fprintf (stderr, "It's segment time!\n"); /* magic for let ms3_readtracelist_selection work */
     for (int a = 0; a < segments; a++)
     {
       MS3Selections *selection = NULL;
@@ -238,9 +237,8 @@ processTrace (const char *mseedfile,
         printf ("selection failed\n");
         return rv;
       }
-      //ms3_printselections (selection);
+
       rv = parse_miniSEED_from_stream (inputmseedBuffer, inputmseedBufferLength, selection, &data_temp, &sampleRate, &totalSamples);
-      //rv = parse_miniSEED_from_file(mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
       if (rv != 0)
       {
         return rv;
@@ -328,22 +326,6 @@ processTrace (const char *mseedfile,
         fftResult[i] *= taper_window[i];
       }
 
-      /* Apply iFFT */
-      double *output;
-      ifft (fftResult, totalSamples, &output);
-      /* Output signal with instrument response removed */
-      FILE *out = fopen (outputFile, "w");
-      if (out == NULL)
-      {
-        fprintf (stderr, "Cannot output signal output file.\n");
-        return -1;
-      }
-      for (int i = 0; i < totalSamples; i++)
-      {
-        fprintf (out, "%e\n", output[i]);
-      }
-      fclose (out);
-
       /* Get power spetral density (PSD) of this segment */
       double *psd;
 
@@ -381,7 +363,6 @@ processTrace (const char *mseedfile,
       free (freqResponse);
       free (taper_window);
       free (psd);
-      free (output);
 
       starttimeOfThisSegment += nextTimeStampOfSegmentsNS;
       endtimeOfThisSegment += nextTimeStampOfSegmentsNS;
