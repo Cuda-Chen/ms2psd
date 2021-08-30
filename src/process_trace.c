@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "libmseed.h"
 
@@ -157,6 +158,34 @@ processTrace (const char *mseedfile,
   double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
 
+  /* Read miniSEED file to buffer */
+  FILE *fp;
+  char *inputmseedBuffer = NULL;
+  uint64_t inputmseedBufferLength;
+  struct stat sb = {0};
+  if (!(fp = fopen (mseedfile, "rb")))
+  {
+    fprintf (stderr, "Cannot open input miniSEED file\n");
+    return -1;
+  }
+  if (fstat (fileno (fp), &sb))
+  {
+    fprintf (stderr, "Cannot stat input miniSEED file\n");
+    return -1;
+  }
+  if (!(inputmseedBuffer = (char *)malloc (sb.st_size)))
+  {
+    fprintf (stderr, "Cannot allocate input miniSEED buffer\n");
+    return -1;
+  }
+  if (1 != (fread (inputmseedBuffer, sb.st_size, 1, fp)))
+  {
+    fprintf (stderr, "Cannot read miniSEED file into buffer\n");
+    return -1;
+  }
+  fclose (fp);
+  inputmseedBufferLength = sb.st_size;
+
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
   for (int traceIdx = 0; traceIdx < totalSegmentsOfOneHour; traceIdx++)
@@ -198,7 +227,7 @@ processTrace (const char *mseedfile,
     starttimeOfThisSegment = starttimeOfThisHour;
     endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
-    fprintf (stderr, "It's segment time!\n"); /* magic for let ms3_readtracelist_selection work */
+    //fprintf (stderr, "It's segment time!\n"); /* magic for let ms3_readtracelist_selection work */
     for (int a = 0; a < segments; a++)
     {
       MS3Selections *selection = NULL;
@@ -210,7 +239,8 @@ processTrace (const char *mseedfile,
         return rv;
       }
       //ms3_printselections (selection);
-      rv = parse_miniSEED (mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
+      rv = parse_miniSEED_from_stream (inputmseedBuffer, inputmseedBufferLength, selection, &data_temp, &sampleRate, &totalSamples);
+      //rv = parse_miniSEED_from_file(mseedfile, selection, &data_temp, &sampleRate, &totalSamples);
       if (rv != 0)
       {
         return rv;
@@ -223,7 +253,12 @@ processTrace (const char *mseedfile,
 
       /* Adjust input data length */
       int desiredSamples = (int)(lengthOfSegment * sampleRate);
-      data_t *data   = (data_t *)malloc (sizeof (data_t) * desiredSamples);
+      data_t *data       = (data_t *)malloc (sizeof (data_t) * desiredSamples);
+      if (data == NULL)
+      {
+        printf ("Segment data array allocation failed\n");
+        return -1;
+      }
       /* Padding if input data less than 15-minute */
       if (totalSamples < desiredSamples)
       {
@@ -456,7 +491,7 @@ processTrace (const char *mseedfile,
     /* Aggerate all reduced sample PSD */
     {
       int i = traceIdx;
-      printf ("%d\n", traceIdx);
+      //printf ("%d\n", traceIdx);
       for (int j = 0; j < freqLen; j++)
       {
         int idx                           = i * freqLen + j;
@@ -560,6 +595,9 @@ processTrace (const char *mseedfile,
   free (leftFreqs);
   free (rightFreqs);
   free (centerPeriods);
+
+  /* Close input miniSEED buffer */
+  free (inputmseedBuffer);
 
   return 0;
 }
