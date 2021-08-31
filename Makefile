@@ -19,6 +19,8 @@ OBJS += main.o
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g -DDEBUG=1
+else
+CFLAGS += -O1
 endif
 
 .PHONY: all clean tests format
