@@ -95,15 +95,15 @@ parse_miniSEED_from_file (const char *mseedfile, MS3Selections *selection, data_
               sptr = (char *)seg->datasamples + (i * samplesize);
               if (sampletype == 'i')
               {
-                (*data)[index] = (data_t) (*(int32_t *)sptr);
+                (*data)[index] = (data_t)(*(int32_t *)sptr);
               }
               else if (sampletype == 'f')
               {
-                (*data)[index] = (data_t) (*(float *)sptr);
+                (*data)[index] = (data_t)(*(float *)sptr);
               }
               else if (sampletype == 'd')
               {
-                (*data)[index] = (data_t) (*(double *)sptr);
+                (*data)[index] = (data_t)(*(double *)sptr);
               }
 
               index++;
@@ -218,15 +218,15 @@ parse_miniSEED_from_stream (char *buffer, uint64_t bufferlength, MS3Selections *
               sptr = (char *)seg->datasamples + (i * samplesize);
               if (sampletype == 'i')
               {
-                (*data)[index] = (data_t) (*(int32_t *)sptr);
+                (*data)[index] = (data_t)(*(int32_t *)sptr);
               }
               else if (sampletype == 'f')
               {
-                (*data)[index] = (data_t) (*(float *)sptr);
+                (*data)[index] = (data_t)(*(float *)sptr);
               }
               else if (sampletype == 'd')
               {
-                (*data)[index] = (data_t) (*(double *)sptr);
+                (*data)[index] = (data_t)(*(double *)sptr);
               }
 
               index++;

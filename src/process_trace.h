@@ -10,7 +10,6 @@ int processTrace (const char *mseedfile,
                   float f3,
                   float f4,
                   int totype,
-                  const char *sacpzfile,
-                  const char *outputFile);
+                  const char *sacpzfile);
 
 #endif
