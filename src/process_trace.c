@@ -156,11 +156,16 @@ processTrace (const char *mseedfile,
   double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
   double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
-  /* PSD properties (min, max, mean, median) summary statistics for 1-hour long segment */
+  /* PSD properties (min, max, mean, median) summary statistics for 15-minute long segment */
   double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
   double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
   double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
   double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  /* PSD properties (min, max, mean, median) summary statistics with dimension reduction for 1-hour long segment */
+  double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
+  double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
 
   /* Read miniSEED file to buffer */
   FILE *fp;
@@ -449,11 +454,7 @@ processTrace (const char *mseedfile,
     free (psdArr);
 
     /* Statistics with dimension reduction */
-    double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
-    double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
-    double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
-    double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
-    double *psdBinReducedArr    = (double *)malloc (sizeof (double) * segments);
+    double *psdBinReducedArr = (double *)malloc (sizeof (double) * segments);
     for (int i = 0; i < freqLen; i++)
     {
       psdBinReducedMean[i] = 0.0f;
@@ -492,10 +493,6 @@ processTrace (const char *mseedfile,
       }
     }
     free (psdBinReduced);
-    free (psdBinReducedMean);
-    free (psdBinReducedMin);
-    free (psdBinReducedMax);
-    free (psdBinReducedMedian);
     free (psdBinReducedArr);
 
     starttimeOfThisHour += nextTimeStampOfHoursNS;
@@ -540,6 +537,7 @@ processTrace (const char *mseedfile,
     }
   }
   /* Output PDF */
+#if 0
   FILE *pdf_out = fopen ("pdf_out.txt", "w");
   for (int i = 0; i < PDFBins; i++)
   {
@@ -551,10 +549,12 @@ processTrace (const char *mseedfile,
     fprintf (pdf_out, "\n");
   }
   fclose (pdf_out);
+#endif
   free (pdfMean);
   free (pdfMin);
   free (pdfMax);
   free (pdfMedian);
+#if 0
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
   for (int i = 0; i < totalSegmentsOfOneHour; i++)
   {
@@ -569,6 +569,7 @@ processTrace (const char *mseedfile,
     }
   }
   fclose (psd_reduced_out);
+#endif
   free (psdBinReducedMeanAggerated);
   free (psdBinReducedMinAggerated);
   free (psdBinReducedMaxAggerated);
@@ -576,12 +577,14 @@ processTrace (const char *mseedfile,
   free (estimatedFreqs);
 
   /* Output center periods */
+#if 0
   FILE *center_periods_out = fopen ("center_periods_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
     fprintf (center_periods_out, "%e\n", centerPeriods[i]);
   }
   fclose (center_periods_out);
+#endif
 
   /* Free center periods allocated objects */
   free (leftFreqs);
@@ -597,6 +600,10 @@ processTrace (const char *mseedfile,
   free (psdMax);
   free (psdMean);
   free (psdMedian);
+  free (psdBinReducedMean);
+  free (psdBinReducedMin);
+  free (psdBinReducedMax);
+  free (psdBinReducedMedian);
 
   /* Close input miniSEED buffer */
   free (inputmseedBuffer);
