@@ -61,7 +61,6 @@ getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtim
   uint32_t flags = 0;
   int8_t verbose = 0;
   flags |= MSF_VALIDATECRC;
-  //flags |= MSF_RECORDLIST;
   int rv;
 
   MS3TraceList *mstl = NULL;
@@ -342,7 +341,6 @@ processTrace (const char *mseedfile,
       /* Execute FFT */
       fft (tapered, totalSamples, fftResult);
 
-      /* instrument response removal */
       /* Apply freqyency response removal */
       remove_response (fftResult, freqResponse, totalSamples);
 
@@ -379,8 +377,7 @@ processTrace (const char *mseedfile,
     }
 
     /* PSD summary of this 1-hour long segment */
-    /* Temporary array for PSD summary sorting */
-    double *psdArr = (double *)malloc (sizeof (double) * segments);
+    double *psdArr = (double *)malloc (sizeof (double) * segments); /* Temporary array for PSD summary sorting */
     for (int i = 0; i < psdBinWindowSize; i++)
       psdMean[i] = 0.0f;
     for (int i = 0; i < psdBinWindowSize; i++)
@@ -466,18 +463,17 @@ processTrace (const char *mseedfile,
     }
 
     /* Aggerate all reduced sample PSD */
+    int i = traceIdx;
+    //printf ("%d\n", traceIdx);
+    for (int j = 0; j < freqLen; j++)
     {
-      int i = traceIdx;
-      //printf ("%d\n", traceIdx);
-      for (int j = 0; j < freqLen; j++)
-      {
-        int idx                           = i * freqLen + j;
-        psdBinReducedMeanAggerated[idx]   = psdBinReducedMean[j];
-        psdBinReducedMinAggerated[idx]    = psdBinReducedMin[j];
-        psdBinReducedMaxAggerated[idx]    = psdBinReducedMax[j];
-        psdBinReducedMedianAggerated[idx] = psdBinReducedMedian[j];
-      }
+      int idx                           = i * freqLen + j;
+      psdBinReducedMeanAggerated[idx]   = psdBinReducedMean[j];
+      psdBinReducedMinAggerated[idx]    = psdBinReducedMin[j];
+      psdBinReducedMaxAggerated[idx]    = psdBinReducedMax[j];
+      psdBinReducedMedianAggerated[idx] = psdBinReducedMedian[j];
     }
+
     free (psdBinReduced);
     free (psdBinReducedArr);
 
@@ -523,7 +519,6 @@ processTrace (const char *mseedfile,
     }
   }
   /* Output PDF */
-  //#if 0
   FILE *pdf_out = fopen ("pdf_out.txt", "w");
   for (int i = 0; i < PDFBins; i++)
   {
@@ -535,7 +530,7 @@ processTrace (const char *mseedfile,
     fprintf (pdf_out, "\n");
   }
   fclose (pdf_out);
-  //#endif
+
   free (pdfMean);
   free (pdfMin);
   free (pdfMax);
@@ -563,14 +558,12 @@ processTrace (const char *mseedfile,
   free (estimatedFreqs);
 
   /* Output center periods */
-  //#if 0
   FILE *center_periods_out = fopen ("center_periods_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
     fprintf (center_periods_out, "%e\n", centerPeriods[i]);
   }
   fclose (center_periods_out);
-  //#endif
 
   /* Free center periods allocated objects */
   free (leftFreqs);

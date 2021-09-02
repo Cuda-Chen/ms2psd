@@ -6,25 +6,6 @@
 
 #define PI 3.14159265358979323846
 
-/*
- * Create an array of evenly spaced numbers.
- * Input: malloced array `array`, min, max, n
- * Output: array `array` filled with values
- * Reference: https://gist.github.com/mortenpi/f20a93c8ed3ee7785e65
- */
-#if 0
-static void
-range (double *array, double min, double max, size_t n)
-{
-  double delta = (max - min) / (double)(n - 1);
-  size_t i;
-  for (i = 0; i < n; i++)
-  {
-    array[i] = min + i * delta;
-  }
-}
-#endif
-
 int
 get_freq_response (double complex *poles, int npoles,
                    double complex *zeros, int nzeros,
@@ -32,9 +13,7 @@ get_freq_response (double complex *poles, int npoles,
                    double **freq, double complex **freq_response,
                    int flag)
 {
-  double min = 0.0f;
-  double max = sampling_rate;
-  double k   = constant;
+  double k = constant;
   int i;
   /* Check user need displacement, velocity, or acceleration response */
   if (flag == 1)
@@ -101,14 +80,6 @@ remove_response (double complex *data, double complex *freq_response, int data_s
   for (i = 1; i < data_samples; i++)
   {
     data[i] /= freq_response[i];
-
-    /* Input data are real so F(N - i) = F(i) */
-#if 0
-    if(i != data_samples - i) {
-        data[data_samples - i] /= freq_response[i];
-        //data[data_samples - i] = conj(data[data_samples - i]);
-    }
-#endif
   }
 
   return 0;
