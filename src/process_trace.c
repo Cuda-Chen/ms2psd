@@ -107,9 +107,7 @@ processTrace (const char *mseedfile,
               int totype,
               const char *sacpzfile)
 {
-  //data_t *data = NULL;
   double sampleRate;
-  uint64_t totalSamples;
 
   int rv;
   char *sidpattern   = "*";
@@ -129,7 +127,23 @@ processTrace (const char *mseedfile,
   nstime_t nextTimeStampOfHoursNS = nextTimeStampOfHours * NSECS;
   nstime_t starttimeOfThisHour    = starttimeOfTrace;
   nstime_t endtimeOfThisHour      = starttimeOfThisHour + ((nstime_t)lengthOfOneHour * NSECS);
-  //totalSegmentsOfOneHour          = 1;
+
+  /* Read SACPZ file */
+  double complex *poles, *zeros;
+  int npoles, nzeros;
+  double constant;
+  parse_sacpz (sacpzfile,
+               &poles, &npoles,
+               &zeros, &nzeros,
+               &constant);
+  /* Get frequency response */
+  double *freq;
+  double complex *freqResponse;
+  int samples = lengthOfSegment * sampleRate;
+  get_freq_response (poles, npoles,
+                     zeros, nzeros,
+                     constant, sampleRate, samples,
+                     &freq, &freqResponse, totype);
 
   /* Set the left and right frequency limit of each octave used in dimension reduction part */
   double *leftFreqs, *rightFreqs;
@@ -166,6 +180,41 @@ processTrace (const char *mseedfile,
   double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
   double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
   double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
+  /* Temporary objects for calculation which can be allocated first */
+  /* Set input data length to 15-minute long equivalent */
+  int desiredSamples = (int)(lengthOfSegment * sampleRate);
+  data_t *data       = (data_t *)malloc (sizeof (data_t) * desiredSamples);
+  if (data == NULL)
+  {
+    printf ("Segment data array allocation failed\n");
+    return -1;
+  }
+  data_t *detrended = (data_t *)malloc (sizeof (data_t) * desiredSamples);
+  if (detrended == NULL)
+  {
+    fprintf (stderr, "Cannot allocate detrend output memory.\n");
+    return -1;
+  }
+  float *taperedSignal      = (float *)malloc (sizeof (float) * desiredSamples);
+  double *tapered           = (double *)malloc (sizeof (double) * desiredSamples);
+  double complex *fftResult = (double complex *)malloc (sizeof (double complex) * desiredSamples);
+  /* Cosine taper window */
+  double *taper_window = (double *)malloc (sizeof (double) * desiredSamples);
+  if (taper_window == NULL)
+  {
+    fprintf (stderr, "taper window allocation failed\n");
+    return -1;
+  }
+  for (int i = 0; i < desiredSamples; i++)
+    taper_window[i] = 0.0f;
+  sacCosineTaper (freq, desiredSamples, f1, f2, f3, f4, sampleRate, taper_window);
+  /* PSD array of each 15-minute long segment */
+  double *psd = (double *)malloc (sizeof (double) * desiredSamples);
+  if (psd == NULL)
+  {
+    fprintf (stderr, "cannot allocate PSD space\n");
+    return -1;
+  }
 
   /* Read miniSEED file to buffer */
   FILE *fp;
@@ -194,23 +243,6 @@ processTrace (const char *mseedfile,
   }
   fclose (fp);
   inputmseedBufferLength = sb.st_size;
-
-  /* Read SACPZ file */
-  double complex *poles, *zeros;
-  int npoles, nzeros;
-  double constant;
-  parse_sacpz (sacpzfile,
-               &poles, &npoles,
-               &zeros, &nzeros,
-               &constant);
-  /* Get frequency response */
-  double *freq;
-  double complex *freqResponse;
-  int samples = lengthOfSegment * sampleRate;
-  get_freq_response (poles, npoles,
-                     zeros, nzeros,
-                     constant, sampleRate, samples,
-                     &freq, &freqResponse, totype);
 
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
@@ -265,25 +297,13 @@ processTrace (const char *mseedfile,
         return rv;
       }
 
+      uint64_t totalSamples;
       rv = parse_miniSEED_from_stream (inputmseedBuffer, inputmseedBufferLength, selection, &data_temp, &sampleRate, &totalSamples);
       if (rv != 0)
       {
         return rv;
       }
-      if (data_temp == NULL)
-      {
-        printf ("Input data read unsuccessfully\n");
-        return -1;
-      }
 
-      /* Adjust input data length to 15-minute long equivalent */
-      int desiredSamples = (int)(lengthOfSegment * sampleRate);
-      data_t *data       = (data_t *)malloc (sizeof (data_t) * desiredSamples);
-      if (data == NULL)
-      {
-        printf ("Segment data array allocation failed\n");
-        return -1;
-      }
       /* Padding if input data less than 15-minute */
       if (totalSamples < desiredSamples)
       {
@@ -313,21 +333,13 @@ processTrace (const char *mseedfile,
         data[i] -= mean;
       }
       /* Detrend */
-      data_t *detrended = (data_t *)malloc (sizeof (data_t) * totalSamples);
-      if (detrended == NULL)
-      {
-        fprintf (stderr, "Cannot allocate detrend output memory.\n");
-        return -1;
-      }
       detrend (data, (int)totalSamples, detrended);
-      /* First taper the signal with 5%-cosine-window */
-      float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
+      /* Taper the signal with 5%-cosine-window */
       cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
-      double *tapered = (double *)malloc (sizeof (double) * totalSamples);
+      /* Change data type from data_t to double */
       for (int i = 0; i < totalSamples; i++)
         tapered[i] = (double)taperedSignal[i];
-      /* Then execute FFT */
-      double complex *fftResult = (double complex *)malloc (sizeof (double complex) * totalSamples);
+      /* Execute FFT */
       fft (tapered, totalSamples, fftResult);
 
       /* instrument response removal */
@@ -335,26 +347,9 @@ processTrace (const char *mseedfile,
       remove_response (fftResult, freqResponse, totalSamples);
 
       /* band-pass filtering to prevent overamplification */
-      double *taper_window = (double *)malloc (sizeof (double) * totalSamples);
-      if (taper_window == NULL)
-      {
-        fprintf (stderr, "taper window allocation failed\n");
-        return -1;
-      }
-      for (int i = 0; i < totalSamples; i++)
-        taper_window[i] = 0.0f;
-      sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, taper_window);
       for (int i = 0; i < totalSamples; i++)
       {
         fftResult[i] *= taper_window[i];
-      }
-
-      /* Get power spetral density (PSD) of this segment */
-      double *psd = (double *)malloc (sizeof (double) * totalSamples);
-      if (psd == NULL)
-      {
-        fprintf (stderr, "cannot allocate PSD space\n");
-        return -1;
       }
 
       /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,
@@ -365,6 +360,7 @@ processTrace (const char *mseedfile,
       fftResult[i] /= (1. / sampleRate);
   }*/
 
+      /* Get power spetral density (PSD) of this segment */
       calculatePSD (fftResult, totalSamples, sampleRate, psd);
 
       for (int i = 0; i < psdBinWindowSize; i++)
@@ -375,14 +371,6 @@ processTrace (const char *mseedfile,
 
       /* Free allocated objects */
       free (data_temp);
-      free (data);
-      free (detrended);
-      free (taperedSignal);
-      free (tapered);
-      free (fftResult);
-
-      free (taper_window);
-      free (psd);
 
       starttimeOfThisSegment += nextTimeStampOfSegmentsNS;
       endtimeOfThisSegment += nextTimeStampOfSegmentsNS;
@@ -423,7 +411,6 @@ processTrace (const char *mseedfile,
     }
 
     /* Dimension reduction technique escribed in McMarana 2004 */
-    /* Dimension reduction */
     double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
     for (int i = 0; i < segments * freqLen; i++)
     {
@@ -450,7 +437,6 @@ processTrace (const char *mseedfile,
     }
 
     free (psdBin);
-
     free (psdArr);
 
     /* Statistics with dimension reduction */
@@ -537,7 +523,7 @@ processTrace (const char *mseedfile,
     }
   }
   /* Output PDF */
-#if 0
+  //#if 0
   FILE *pdf_out = fopen ("pdf_out.txt", "w");
   for (int i = 0; i < PDFBins; i++)
   {
@@ -549,7 +535,7 @@ processTrace (const char *mseedfile,
     fprintf (pdf_out, "\n");
   }
   fclose (pdf_out);
-#endif
+  //#endif
   free (pdfMean);
   free (pdfMin);
   free (pdfMax);
@@ -577,14 +563,14 @@ processTrace (const char *mseedfile,
   free (estimatedFreqs);
 
   /* Output center periods */
-#if 0
+  //#if 0
   FILE *center_periods_out = fopen ("center_periods_out.txt", "w");
   for (int i = 0; i < freqLen; i++)
   {
     fprintf (center_periods_out, "%e\n", centerPeriods[i]);
   }
   fclose (center_periods_out);
-#endif
+  //#endif
 
   /* Free center periods allocated objects */
   free (leftFreqs);
@@ -604,6 +590,14 @@ processTrace (const char *mseedfile,
   free (psdBinReducedMin);
   free (psdBinReducedMax);
   free (psdBinReducedMedian);
+  /* Free temporary objects of calculation */
+  free (data);
+  free (detrended);
+  free (taperedSignal);
+  free (tapered);
+  free (fftResult);
+  free (taper_window);
+  free (psd);
 
   /* Close input miniSEED buffer */
   free (inputmseedBuffer);
