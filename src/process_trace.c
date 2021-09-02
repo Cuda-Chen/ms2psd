@@ -185,6 +185,23 @@ processTrace (const char *mseedfile,
   fclose (fp);
   inputmseedBufferLength = sb.st_size;
 
+  /* Read SACPZ file */
+  double complex *poles, *zeros;
+  int npoles, nzeros;
+  double constant;
+  parse_sacpz (sacpzfile,
+               &poles, &npoles,
+               &zeros, &nzeros,
+               &constant);
+  /* Get frequency response */
+  double *freq;
+  double complex *freqResponse;
+  int samples = lengthOfSegment * sampleRate;
+  get_freq_response (poles, npoles,
+                     zeros, nzeros,
+                     constant, sampleRate, samples,
+                     &freq, &freqResponse, totype);
+
   /* Split trace to 1-hour long segment with 50% overlapping
    * for reducing processing time */
   for (int traceIdx = 0; traceIdx < totalSegmentsOfOneHour; traceIdx++)
@@ -298,22 +315,6 @@ processTrace (const char *mseedfile,
       fft (tapered, totalSamples, &fftResult);
 
       /* instrument response removal */
-      /* Read SACPZ file */
-      double complex *poles, *zeros;
-      int npoles, nzeros;
-      double constant;
-      parse_sacpz (sacpzfile,
-                   &poles, &npoles,
-                   &zeros, &nzeros,
-                   &constant);
-      /* Get frequency response */
-      double *freq;
-      double complex *freqResponse;
-      get_freq_response (poles, npoles,
-                         zeros, nzeros,
-                         constant, sampleRate, totalSamples,
-                         &freq, &freqResponse, totype);
-
       /* Apply freqyency response removal */
       remove_response (fftResult, freqResponse, totalSamples);
 
@@ -356,10 +357,7 @@ processTrace (const char *mseedfile,
       free (taperedSignal);
       free (tapered);
       free (fftResult);
-      free (poles);
-      free (zeros);
-      free (freq);
-      free (freqResponse);
+
       free (taper_window);
       free (psd);
 
@@ -572,9 +570,16 @@ processTrace (const char *mseedfile,
     fprintf (center_periods_out, "%e\n", centerPeriods[i]);
   }
   fclose (center_periods_out);
+
+  /* Free center periods allocated objects */
   free (leftFreqs);
   free (rightFreqs);
   free (centerPeriods);
+  /* Free response file allocated objects */
+  free (freq);
+  free (freqResponse);
+  free (poles);
+  free (zeros);
 
   /* Close input miniSEED buffer */
   free (inputmseedBuffer);
