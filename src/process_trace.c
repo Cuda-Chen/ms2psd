@@ -52,7 +52,7 @@ decibel (const double a)
 static int
 binLocation (const double v, double start)
 {
-  return (int)(abs (round (v)) - abs (start));
+  return (int)(fabs (round (v)) - fabs (start));
 }
 
 int
@@ -156,6 +156,11 @@ processTrace (const char *mseedfile,
   double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
   double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
+  /* PSD properties (min, max, mean, median) summary statistics for 1-hour long segment */
+  double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
 
   /* Read miniSEED file to buffer */
   FILE *fp;
@@ -217,6 +222,7 @@ processTrace (const char *mseedfile,
     MS3Selections *fooselections = NULL;
 #endif
 
+    /* Count number of available 15-minutes segments in this 1-hour long segment */
     int segments = 0;
     while (endtimeOfThisSegment <= endtimeTemp)
     {
@@ -239,7 +245,7 @@ processTrace (const char *mseedfile,
       ms3_freeselections (fooselections);
 #endif
 
-    // Reset start time and end time to the first 15-minute long segment
+    /* Reset start time and end time to the first 15-minute long segment */
     starttimeOfThisSegment = starttimeOfThisHour;
     endtimeOfThisSegment   = starttimeOfThisSegment + ((nstime_t)lengthOfSegment * NSECS);
     /* Get data from input miniSEED file */
@@ -265,7 +271,7 @@ processTrace (const char *mseedfile,
         return -1;
       }
 
-      /* Adjust input data length */
+      /* Adjust input data length to 15-minute long equivalent */
       int desiredSamples = (int)(lengthOfSegment * sampleRate);
       data_t *data       = (data_t *)malloc (sizeof (data_t) * desiredSamples);
       if (data == NULL)
@@ -302,8 +308,13 @@ processTrace (const char *mseedfile,
         data[i] -= mean;
       }
       /* Detrend */
-      data_t *detrended;
-      detrend (data, (int)totalSamples, &detrended);
+      data_t *detrended = (data_t *)malloc (sizeof (data_t) * totalSamples);
+      if (detrended == NULL)
+      {
+        fprintf (stderr, "Cannot allocate detrend output memory.\n");
+        return -1;
+      }
+      detrend (data, (int)totalSamples, detrended);
       /* First taper the signal with 5%-cosine-window */
       float *taperedSignal = (float *)malloc (sizeof (float) * totalSamples);
       cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
@@ -311,23 +322,35 @@ processTrace (const char *mseedfile,
       for (int i = 0; i < totalSamples; i++)
         tapered[i] = (double)taperedSignal[i];
       /* Then execute FFT */
-      double complex *fftResult;
-      fft (tapered, totalSamples, &fftResult);
+      double complex *fftResult = (double complex *)malloc (sizeof (double complex) * totalSamples);
+      fft (tapered, totalSamples, fftResult);
 
       /* instrument response removal */
       /* Apply freqyency response removal */
       remove_response (fftResult, freqResponse, totalSamples);
 
       /* band-pass filtering to prevent overamplification */
-      double *taper_window;
-      sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, &taper_window);
+      double *taper_window = (double *)malloc (sizeof (double) * totalSamples);
+      if (taper_window == NULL)
+      {
+        fprintf (stderr, "taper window allocation failed\n");
+        return -1;
+      }
+      for (int i = 0; i < totalSamples; i++)
+        taper_window[i] = 0.0f;
+      sacCosineTaper (freq, totalSamples, f1, f2, f3, f4, sampleRate, taper_window);
       for (int i = 0; i < totalSamples; i++)
       {
         fftResult[i] *= taper_window[i];
       }
 
       /* Get power spetral density (PSD) of this segment */
-      double *psd;
+      double *psd = (double *)malloc (sizeof (double) * totalSamples);
+      if (psd == NULL)
+      {
+        fprintf (stderr, "cannot allocate PSD space\n");
+        return -1;
+      }
 
       /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,
    * we do not do such operation as this produces resaonable result
@@ -337,12 +360,7 @@ processTrace (const char *mseedfile,
       fftResult[i] /= (1. / sampleRate);
   }*/
 
-      rv = calculatePSD (fftResult, totalSamples, sampleRate, &psd);
-      if (rv != 0)
-      {
-        fprintf (stderr, "Something wrong in calculate PSD procedure,\n");
-        return -1;
-      }
+      calculatePSD (fftResult, totalSamples, sampleRate, psd);
 
       for (int i = 0; i < psdBinWindowSize; i++)
       {
@@ -367,12 +385,9 @@ processTrace (const char *mseedfile,
         ms3_freeselections (selection);
     }
 
-    /* PSD properties (min, max, mean, median) summary */
-    double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-    double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-    double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
-    double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
-    double *psdArr    = (double *)malloc (sizeof (double) * segments);
+    /* PSD summary of this 1-hour long segment */
+    /* Temporary array for PSD summary sorting */
+    double *psdArr = (double *)malloc (sizeof (double) * segments);
     for (int i = 0; i < psdBinWindowSize; i++)
       psdMean[i] = 0.0f;
     for (int i = 0; i < psdBinWindowSize; i++)
@@ -430,10 +445,7 @@ processTrace (const char *mseedfile,
     }
 
     free (psdBin);
-    free (psdMin);
-    free (psdMax);
-    free (psdMean);
-    free (psdMedian);
+
     free (psdArr);
 
     /* Statistics with dimension reduction */
@@ -580,6 +592,11 @@ processTrace (const char *mseedfile,
   free (freqResponse);
   free (poles);
   free (zeros);
+  /* Free PSD summary statistics objects */
+  free (psdMin);
+  free (psdMax);
+  free (psdMean);
+  free (psdMedian);
 
   /* Close input miniSEED buffer */
   free (inputmseedBuffer);

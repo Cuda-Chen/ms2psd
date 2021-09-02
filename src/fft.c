@@ -26,14 +26,13 @@ range (double *array, double min, double max, size_t n)
 }
 
 void
-fft (double *data, uint64_t dataSamples, double complex **output)
+fft (double *data, uint64_t dataSamples, double complex *output)
 {
   fftw_plan fft;
   uint64_t i;
   /* allocate memory */
   fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
   fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
-  *output           = (double complex *)malloc (sizeof (double complex) * dataSamples);
 
   /* prepare input data */
   for (i = 0; i < dataSamples; i++)
@@ -51,7 +50,7 @@ fft (double *data, uint64_t dataSamples, double complex **output)
   /* prepare output data */
   for (i = 0; i < dataSamples; i++)
   {
-    *(*(output) + i) = out[i];
+    output[i] = out[i];
   }
 
   /* free allocated memory */
@@ -60,14 +59,13 @@ fft (double *data, uint64_t dataSamples, double complex **output)
 }
 
 void
-ifft (double complex *data, uint64_t dataSamples, double **output)
+ifft (double complex *data, uint64_t dataSamples, double *output)
 {
   fftw_plan ifft;
   uint64_t i;
   /* allocate memory */
   fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
   fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
-  *output           = (double *)malloc (sizeof (double) * dataSamples);
 
   /* prepare input data */
   for (i = 0; i < dataSamples; i++)
@@ -83,12 +81,12 @@ ifft (double complex *data, uint64_t dataSamples, double **output)
   /* prepare output data */
   for (i = 0; i < dataSamples; i++)
   {
-    *(*(output) + i) = creal (out[i]);
+    output[i] = creal (out[i]);
   }
 
   /* Normalize output as FFTW does not do normalization when running iFFT */
   for (i = 0; i < dataSamples; i++)
-    *(*(output) + i) *= 1. / dataSamples;
+    output[i] *= 1. / dataSamples;
 
   /* free allocated memory */
   fftw_free (in);

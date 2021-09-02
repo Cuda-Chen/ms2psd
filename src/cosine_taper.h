@@ -2,6 +2,6 @@
 #define COSINE_TAPER_H
 
 void cosineTaper (float *data, int n, float alpha, float *tapered);
-int sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, double **tapered);
+void sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, double *tapered);
 
 #endif

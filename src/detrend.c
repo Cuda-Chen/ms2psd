@@ -4,16 +4,8 @@
 #include "datatype.h"
 
 int
-detrend (data_t *input, int npts, data_t **output)
+detrend (data_t *input, int npts, data_t *output)
 {
-  /* allocate output array memory */
-  *output = (data_t *)malloc (sizeof (data_t) * npts);
-  if (*output == NULL)
-  {
-    fprintf (stderr, "Cannot allocate detrend output memory.");
-    return -1;
-  }
-
   int i;
   data_t sx  = 0.0,
          sy  = 0.0,
@@ -32,7 +24,7 @@ detrend (data_t *input, int npts, data_t **output)
 
   for (i = 0; i < npts; i++)
   {
-    *(*(output) + i) = input[i] - (constant + slope * i);
+    output[i] = input[i] - (constant + slope * i);
   }
 
   return 0;

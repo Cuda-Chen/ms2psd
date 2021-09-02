@@ -41,20 +41,11 @@ cosineTaper (float *data, int n, float alpha, float *tapered)
  * for negative frequency.
  * That is, the output taper window consists of two cosine taper windows.
  */
-int
-sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, double **taper)
+void
+sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, double *taper)
 {
   double nyquist_freq = sampling_rate / 2.0;
-
-  *taper = (double *)malloc (sizeof (double) * n);
-  if (*taper == NULL)
-  {
-    fprintf (stderr, "taper window allocation failed\n");
-    return -1;
-  }
   int i;
-  for (i = 0; i < n; i++)
-    (*taper)[i] = 0.0f;
 
   /* Set taper window */
   for (i = 0; i < n / 2 + 1; i++)
@@ -63,13 +54,13 @@ sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, do
 
     /* Case 1 */
     if ((f1 <= temp) && (temp <= f2))
-      (*taper)[i] = 0.5 * (1.0 - cos (PI * (temp - f1) / (f2 - f1)));
+      taper[i] = 0.5 * (1.0 - cos (PI * (temp - f1) / (f2 - f1)));
     /* Case 2 */
     else if ((f2 < temp) && (temp < f3))
-      (*taper)[i] = 1.0f;
+      taper[i] = 1.0f;
     /* Case 3 */
     else if ((f3 <= temp) && (temp <= f4))
-      (*taper)[i] = 0.5 * (1.0 + cos (PI * (temp - f3) / (f4 - f3)));
+      taper[i] = 0.5 * (1.0 + cos (PI * (temp - f3) / (f4 - f3)));
   }
   /* Set taper window of negative frequencies */
 #if 0
@@ -94,8 +85,6 @@ sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, do
 #endif
   for (i = n / 2 + 1; i < n; i++)
   {
-    (*taper)[i] = (*taper)[n - i];
+    taper[i] = taper[n - i];
   }
-
-  return 0;
 }

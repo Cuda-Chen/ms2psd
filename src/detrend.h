@@ -3,6 +3,6 @@
 
 #include "datatype.h"
 
-int detrend (data_t *input, int npts, data_t **output);
+void detrend (data_t *input, int npts, data_t *output);
 
 #endif

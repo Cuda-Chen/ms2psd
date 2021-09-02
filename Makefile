@@ -1,4 +1,4 @@
-DEBUG = 0
+DEBUG = 1
 SHOWEACHTRACE = 0
 
 CC = gcc
