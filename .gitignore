@@ -63,3 +63,7 @@ gmt.history
 
 # netCDF grid
 *.grd
+
+# output plots
+*.ps
+*.pdf
