@@ -1,7 +1,7 @@
 DEBUG = 1
 CC = gcc
 CFLAGS = 
-COMMON += -I../src/ -I../include/
+COMMON += -I../src/ -I../include/ -I/usr/local/include/liquid -I/usr/local/include/ -I/usr/local/
 
 LDFLAGS = -L/usr/local
 LDLIBS = -lmseed -lm -lliquid -lfftw3 
@@ -12,6 +12,12 @@ OBJS := $(sort $(wildcard ../src/*.o))
 
 ifeq ($(DEBUG), 1)
 CFLAGS += -O0 -g -DDEBUG=1
+endif
+
+OS := $(shell uname -s)
+# Add library path for macOS/Darwin as libmseed stores differently
+ifeq ($(OS), Darwin)
+LDFLAGS += -L/usr/local/lib
 endif
 
 .PHONY: all clean

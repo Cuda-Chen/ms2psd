@@ -77,12 +77,11 @@ main ()
 
   int taper_length = 18000;
   double freq[taper_length];
-  double *taper;
+  double taper[taper_length];
   double sampling_rate = 20.0f;
 
   range (freq, sampling_rate, taper_length);
-  int rv = sacCosineTaper (freq, taper_length, 1., 2., 8., 9., sampling_rate, &taper);
-  assert (rv == 0);
+  sacCosineTaper (freq, taper_length, 1., 2., 8., 9., sampling_rate, taper);
 
   FILE *fid1 = fopen (FREQ_TAPER_OUTPUT_FILENAME, "w");
   fprintf (fid1, "%% %s: auto-generated file\n\n", FREQ_TAPER_OUTPUT_FILENAME);
