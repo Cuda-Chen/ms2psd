@@ -31,7 +31,7 @@ gmt makecpt -C${COLORMAP} -T${PDF_MIN}/${PDF_MAX} > ${COLORMAP_ADJUST}
 
 gmt begin example
     # Plot PDF
-    gmt grdview ${PDFGRID} -JX6i/5i -Bxa1.0+l"log10(Period)" -Bya10f5+l"Power [10log10(m**2/sec**4/Hz)] [dB]" -BWsne -C${COLORMAP_ADJUST} -S100 -Qs -N0 -V -Y4.0
+    gmt grdview ${PDFGRID} -JX6i/5i -Bxa1.0+l"log10(Period)" -Bya10f5+l"Power [10log10(m**2/sec**4/Hz)] [dB]" -BWSne -C${COLORMAP_ADJUST} -S100 -Qs -N0 -V -Y4.0
     #gmt colorbar -C${COLORMAP_ADJUST} -B.02 -D6.15i/2.5i/5.0i/0.25i -V
     gmt colorbar -C${COLORMAP_ADJUST} -Li0.05 -D6.15i/2.5i/5.0i/0.25i -V
     #gmt psconvert ${PLOTFILE} -A -Tf -V
