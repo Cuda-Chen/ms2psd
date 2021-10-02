@@ -33,6 +33,8 @@ gmt begin example
     # Plot PDF
     gmt grdview ${PDFGRID} -JX6i/5i -Bxa1.0+l"log10(Period)" -Bya10f5+l"Power [10log10(m**2/sec**4/Hz)] [dB]" -BWSne -C${COLORMAP_ADJUST} -S100 -Qs -N0 -V -Y4.0
     gmt colorbar -C${COLORMAP_ADJUST} -B.02 -D6.15i/2.5i/5.0i/0.25i -V
+    awk '{print log($1)/log(10) " " $2}' $LOWNOISEMODEL | gmt plot -JX -W8,/105/105/105
+    awk '{print log($1)/log(10) " " $2}' $HIGHNOISEMODEL | gmt plot -JX -W8,/105/105/105
     #gmt colorbar -c${colormap_adjust} -li0.05 -d6.15i/2.5i/5.0i/0.25i -v
     #gmt psconvert ${PLOTFILE} -A -Tf -V
 gmt end show
