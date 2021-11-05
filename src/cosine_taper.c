@@ -17,6 +17,11 @@ cosineTaper (float *data, int n, float alpha, float *tapered)
   int width = (int)floor (alpha * (n - 1) / 2.0);
   int i;
 
+  // Set value to zero to prevent uninitialized value problem
+  // which the data is not in preserve and attenuation range
+  for (i = 0; i < n; i++)
+    w[i] = 0.0f;
+
   // Calculate consine (Tukey) window
   // Caculation reference from here:
   // https://github.com/scipy/scipy/blob/v1.6.3/scipy/signal/windows/windows.py#L795-L875
