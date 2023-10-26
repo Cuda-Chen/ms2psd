@@ -21,6 +21,17 @@
 #include "range.h"
 #include "standard_deviation.h"
 
+#define MS2PSD_KAHAN_INIT(sum) \
+    float sum = 0.0f; \
+    float c = 0.0f
+
+#define MS2PSD_KAHAN_SUM_STEP(input, sum) \
+    float y = input - c; \
+    volatile float t = sum + y; \
+    volatile float z = t - sum; \
+    c = z - y; \
+    sum = t
+
 nstime_t NSECS = 1000000000;
 
 /* 1-hour long segment properties, 50% overlap*/
@@ -381,16 +392,11 @@ processTrace (const char *mseedfile,
     float *psdArr = (float *)malloc (sizeof (float) * segments); /* Temporary array for PSD summary sorting */
     for (int i = 0; i < psdBinWindowSize; i++)
     {
-        float sum = 0.0f; 
-        float c = 0.0f;
+      MS2PSD_KAHAN_INIT(sum);
       for (int j = 0; j < segments; j++)
       {
         int psdBinIndex = j * psdBinWindowSize + i;
-          float y = *(psdBin + psdBinIndex) - c;
-          volatile float t = sum + y;
-          volatile float z = t - sum;
-          c = z - y;
-          sum = t;
+        MS2PSD_KAHAN_SUM_STEP(*(psdBin + psdBinIndex), sum);
         *(psdArr + j) = *(psdBin + psdBinIndex);
       }
       *(psdMean + i) = sum;
@@ -422,18 +428,13 @@ processTrace (const char *mseedfile,
       {
         int count              = 0;
         int psdBinReducedIndex = i * freqLen + j;
-        float sum = 0.0f;
-        float c = 0.0f;
+        MS2PSD_KAHAN_INIT(sum);
         for (int k = 0; k < psdBinWindowSize; k++)
         {
           if ((leftFreqs[j] >= estimatedFreqs[k]) && (estimatedFreqs[k] >= rightFreqs[j]))
           {
             int psdBinIndex = i * psdBinWindowSize + k;
-            float y = psdBin[psdBinIndex] - c;
-            volatile float t = sum + y;
-            volatile float z = t - sum;
-            c = z - y;
-            sum = t;
+            MS2PSD_KAHAN_SUM_STEP(psdBin[psdBinIndex], sum);
             count++;
           }
         }
