@@ -203,7 +203,7 @@ processTrace (const char *mseedfile,
   float *taperedSignal      = (float *)malloc (sizeof (float) * desiredSamples);
   float complex *fftResult = (float complex *)malloc (sizeof (float complex) * desiredSamples);
   /* Cosine taper window */
-  float *taper_window = (double *)malloc (sizeof (double) * desiredSamples);
+  float *taper_window = (float *)malloc (sizeof (float) * desiredSamples);
   if (taper_window == NULL)
   {
     fprintf (stderr, "taper window allocation failed\n");
@@ -387,8 +387,8 @@ processTrace (const char *mseedfile,
       {
         int psdBinIndex = j * psdBinWindowSize + i;
           float y = *(psdBin + psdBinIndex) - c;
-          volatile t = sum + y;
-          volatile z = t - sum;
+          volatile float t = sum + y;
+          volatile float z = t - sum;
           c = z - y;
           sum = t;
         *(psdArr + j) = *(psdBin + psdBinIndex);
@@ -415,28 +415,30 @@ processTrace (const char *mseedfile,
     }
 
     /* Dimension reduction technique escribed in McMarana 2004 */
-    double *psdBinReduced = (double *)malloc (sizeof (double) * segments * freqLen);
-    for (int i = 0; i < segments * freqLen; i++)
-    {
-      psdBinReduced[i] = 0.0f;
-    }
+    float *psdBinReduced = (float *)malloc (sizeof (float) * segments * freqLen);
     for (int i = 0; i < segments; i++)
     {
       for (int j = 0; j < freqLen; j++)
       {
         int count              = 0;
         int psdBinReducedIndex = i * freqLen + j;
+        float sum = 0.0f;
+        float c = 0.0f;
         for (int k = 0; k < psdBinWindowSize; k++)
         {
           if ((leftFreqs[j] >= estimatedFreqs[k]) && (estimatedFreqs[k] >= rightFreqs[j]))
           {
             int psdBinIndex = i * psdBinWindowSize + k;
-            psdBinReduced[psdBinReducedIndex] += psdBin[psdBinIndex];
+            float y = psdBin[psdBinIndex] - c;
+            volatile float t = sum + y;
+            volatile float z = t - sum;
+            c = z - y;
+            sum = t;
             count++;
           }
         }
-
-        psdBinReduced[psdBinReducedIndex] /= (double)count;
+        psdBinReduced[psdBinReducedIndex] = sum;
+        psdBinReduced[psdBinReducedIndex] /= (float)count;
       }
     }
 
