@@ -4,6 +4,8 @@ set -eux
 
 PDFDATA=../../pdf_out.txt
 PDFPERIODS=../../center_periods_out.txt
+#PDFDATA=../../pdf_out_julia.txt
+#PDFPERIODS=../../center_periods_julia.txt
 HIGHNOISEMODEL=../../highnoise.mod
 LOWNOISEMODEL=../../lownoise.mod
 COLORMAP=psdpdf.cpt
@@ -29,12 +31,13 @@ PDF_MAX=`gmt grdinfo pdf.nc | grep v_min | awk '{print $5}'`
 # Adjust color palette according to min/max of PDF
 gmt makecpt -C${COLORMAP} -T${PDF_MIN}/${PDF_MAX} > ${COLORMAP_ADJUST}
 
-gmt begin example
+gmt begin example png
     # Plot PDF
     gmt grdview ${PDFGRID} -JX6i/5i -Bxa1.0+l"log10(Period)" -Bya10f5+l"Power [10log10(m**2/sec**4/Hz)] [dB]" -BWSne -C${COLORMAP_ADJUST} -S100 -Qs -N0 -V -Y4.0
-    gmt colorbar -C${COLORMAP_ADJUST} -B.02 -D6.15i/2.5i/5.0i/0.25i -V
-    awk '{print log($1)/log(10) " " $2}' $LOWNOISEMODEL | gmt plot -JX -W8,/105/105/105
-    awk '{print log($1)/log(10) " " $2}' $HIGHNOISEMODEL | gmt plot -JX -W8,/105/105/105
+    #gmt colorbar -C${COLORMAP_ADJUST} -B.02 -D6.15i/2.5i/5.0i/0.25i -V
+    gmt colorbar -C${COLORMAP_ADJUST} -B.02 -Dx6.15i/0i+w5.0i/0.25i -V
+    awk '{print log($1)/log(10) " " $2}' $LOWNOISEMODEL | gmt plot -JX -W2,/105/105/105
+    awk '{print log($1)/log(10) " " $2}' $HIGHNOISEMODEL | gmt plot -JX -W2,/105/105/105
     #gmt colorbar -c${colormap_adjust} -li0.05 -d6.15i/2.5i/5.0i/0.25i -v
     #gmt psconvert ${PLOTFILE} -A -Tf -V
 gmt end show

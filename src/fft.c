@@ -26,13 +26,13 @@ range (double *array, double min, double max, size_t n)
 }
 
 void
-fft (double *data, uint64_t dataSamples, double complex *output)
+fft (float *data, uint64_t dataSamples, double complex *output)
 {
-  fftw_plan fft;
+  fftwf_plan fft;
   uint64_t i;
   /* allocate memory */
-  fftw_complex *in  = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
-  fftw_complex *out = (fftw_complex *)fftw_malloc (sizeof (fftw_complex) * dataSamples);
+  fftwf_complex *in  = (fftwf_complex *)fftwf_malloc (sizeof (fftwf_complex) * dataSamples);
+  fftwf_complex *out = (fftwf_complex *)fftwf_malloc (sizeof (fftwf_complex) * dataSamples);
 
   /* prepare input data */
   for (i = 0; i < dataSamples; i++)
@@ -43,9 +43,9 @@ fft (double *data, uint64_t dataSamples, double complex *output)
   }
 
   /* Fourier transform and save result to `out` */
-  fft = fftw_plan_dft_1d (dataSamples, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-  fftw_execute (fft);
-  fftw_destroy_plan (fft);
+  fft = fftwf_plan_dft_1d (dataSamples, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
+  fftwf_execute (fft);
+  fftwf_destroy_plan (fft);
 
   /* prepare output data */
   for (i = 0; i < dataSamples; i++)
@@ -54,8 +54,8 @@ fft (double *data, uint64_t dataSamples, double complex *output)
   }
 
   /* free allocated memory */
-  fftw_free (in);
-  fftw_free (out);
+  fftwf_free (in);
+  fftwf_free (out);
 }
 
 void

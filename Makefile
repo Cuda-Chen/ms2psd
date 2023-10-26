@@ -1,4 +1,4 @@
-DEBUG = 0
+DEBUG = 1
 SHOWEACHTRACE = 0
 
 CC = gcc
@@ -9,7 +9,7 @@ CFLAGS =  -Wall
 #LDFLAGS = -L./libmseed -Wl,-rpath,./libmseed
 #LDLIBS = -Wl,-Bstatic -lmseed -Wl,-Bdynamic -lm -lliquid
 LDFLAGS = -L/usr/local/
-LDLIBS = -lmseed -lm -lliquid -lfftw3
+LDLIBS = -lmseed -lm -lliquid -lfftw3 -lfftw3f
 
 #OBJS = main.o src/parse_miniSEED.o src/bandpass_filter.o src/output2Octave.o src/autocorrelation.o src/spgram.o src/fft.o src/cosine_taper.o src/autocorr.o src/parse_sacpz.o
 

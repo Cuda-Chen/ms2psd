@@ -46,6 +46,8 @@ compare (const void *a, const void *b)
 static double
 decibel (const double a)
 {
+  /*if(a <= 0)
+      return 0.0;*/
   return 10 * log10 (a);
 }
 
@@ -335,11 +337,7 @@ processTrace (const char *mseedfile,
       detrend (data, (int)totalSamples, detrended);
       /* Taper the signal with 5%-cosine-window */
       cosineTaper (detrended, (int)totalSamples, 0.05, taperedSignal);
-      /* Change data type from data_t to double */
-      for (int i = 0; i < totalSamples; i++)
-        tapered[i] = (double)taperedSignal[i];
-      /* Execute FFT */
-      fft (tapered, totalSamples, fftResult);
+      fft (taperedSignal, totalSamples, fftResult);
 
       /* Apply freqyency response removal */
       remove_response (fftResult, freqResponse, totalSamples);
@@ -405,6 +403,7 @@ processTrace (const char *mseedfile,
       psdMax[i]    = decibel (psdMax[i]);
       psdMean[i]   = decibel (psdMean[i]);
       psdMedian[i] = decibel (psdMedian[i]);
+      //psdBin[i] = decibel(psdBin[i]);
     }
 
     /* Dimension reduction technique escribed in McMarana 2004 */
@@ -535,19 +534,21 @@ processTrace (const char *mseedfile,
   free (pdfMin);
   free (pdfMax);
   free (pdfMedian);
-#if 0
+#if 1
   FILE *psd_reduced_out = fopen ("psd_reduced_out.txt", "w");
   for (int i = 0; i < totalSegmentsOfOneHour; i++)
   {
     for (int j = 0; j < freqLen; j++)
     {
       int idx = i * freqLen + j;
-      fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[j],
+      /*fprintf (psd_reduced_out, "%e %e %e %e %e\n", centerPeriods[j],
                psdBinReducedMeanAggerated[idx],
                psdBinReducedMinAggerated[idx],
                psdBinReducedMaxAggerated[idx],
-               psdBinReducedMedianAggerated[idx]);
+               psdBinReducedMedianAggerated[idx]);*/
+      fprintf(psd_reduced_out, "%e ", psdBinReducedMean[idx]);
     }
+    fprintf(psd_reduced_out, "\n");
   }
   fclose (psd_reduced_out);
 #endif
