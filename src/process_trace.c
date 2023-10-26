@@ -270,7 +270,7 @@ processTrace (const char *mseedfile,
       endtimeOfThisSegment += nextTimeStampOfSegmentsNS;
       segments++;
     }
-    double *psdBin = (double *)malloc (sizeof (double) * segments * psdBinWindowSize);
+    float *psdBin = (float *)malloc (sizeof (float) * segments * psdBinWindowSize);
     for (int i = 0; i < segments * psdBinWindowSize; i++)
     {
       psdBin[i] = 0.0f;
@@ -374,7 +374,7 @@ processTrace (const char *mseedfile,
     }
 
     /* PSD summary of this 1-hour long segment */
-    double *psdArr = (double *)malloc (sizeof (double) * segments); /* Temporary array for PSD summary sorting */
+    float *psdArr = (float *)malloc (sizeof (float) * segments); /* Temporary array for PSD summary sorting */
     for (int i = 0; i < psdBinWindowSize; i++)
       psdMean[i] = 0.0f;
     for (int i = 0; i < psdBinWindowSize; i++)
