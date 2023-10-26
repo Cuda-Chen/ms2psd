@@ -198,7 +198,7 @@ processTrace (const char *mseedfile,
   }
   float *taperedSignal      = (float *)malloc (sizeof (float) * desiredSamples);
   double *tapered           = (double *)malloc (sizeof (double) * desiredSamples);
-  double complex *fftResult = (double complex *)malloc (sizeof (double complex) * desiredSamples);
+  float complex *fftResult = (float complex *)malloc (sizeof (float complex) * desiredSamples);
   /* Cosine taper window */
   double *taper_window = (double *)malloc (sizeof (double) * desiredSamples);
   if (taper_window == NULL)
@@ -345,7 +345,7 @@ processTrace (const char *mseedfile,
       /* band-pass filtering to prevent overamplification */
       for (int i = 0; i < totalSamples; i++)
       {
-        fftResult[i] *= taper_window[i];
+        fftResult[i] *= (float)taper_window[i];
       }
 
       /* Though McMarana 2004 mentions you should divide delta-t for each frequency response,

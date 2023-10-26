@@ -26,7 +26,7 @@ range (double *array, double min, double max, size_t n)
 }
 
 void
-fft (float *data, uint64_t dataSamples, double complex *output)
+fft (float *data, uint64_t dataSamples, float complex *output)
 {
   fftwf_plan fft;
   uint64_t i;

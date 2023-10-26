@@ -73,13 +73,13 @@ get_freq_response (double complex *poles, int npoles,
 }
 
 int
-remove_response (double complex *data, double complex *freq_response, int data_samples)
+remove_response (float complex *data, double complex *freq_response, int data_samples)
 {
   int i;
   data[0] = 0.0f + 0.0f * I;
   for (i = 1; i < data_samples; i++)
   {
-    data[i] /= freq_response[i];
+    data[i] /= (float complex)freq_response[i];
   }
 
   return 0;

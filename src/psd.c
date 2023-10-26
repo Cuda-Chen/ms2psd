@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 void
-calculatePSD (double complex *in, int num_samples,
+calculatePSD (float complex *in, int num_samples,
               double sampling_rate, double *psd)
 {
   double delta = 1. / sampling_rate;
