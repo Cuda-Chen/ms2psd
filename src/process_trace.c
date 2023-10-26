@@ -192,10 +192,10 @@ processTrace (const char *mseedfile,
   float *psdMean   = (float *)malloc (sizeof (float) * psdBinWindowSize);
   float *psdMedian = (float *)malloc (sizeof (float) * psdBinWindowSize);
   /* PSD properties (min, max, mean, median) summary statistics with dimension reduction for 1-hour long segment */
-  double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMax    = (double *)malloc (sizeof (double) * freqLen);
-  double *psdBinReducedMedian = (double *)malloc (sizeof (double) * freqLen);
+  float *psdBinReducedMean   = (float *)malloc (sizeof (float) * freqLen);
+  float *psdBinReducedMin    = (float *)malloc (sizeof (float) * freqLen);
+  float *psdBinReducedMax    = (float *)malloc (sizeof (float) * freqLen);
+  float *psdBinReducedMedian = (float *)malloc (sizeof (float) * freqLen);
   /* Temporary objects for calculation which can be allocated first */
   /* Set input data length to 15-minute long equivalent */
   int desiredSamples = (int)(lengthOfSegment * sampleRate);
@@ -447,29 +447,33 @@ processTrace (const char *mseedfile,
     free (psdArr);
 
     /* Statistics with dimension reduction */
-    double *psdBinReducedArr = (double *)malloc (sizeof (double) * segments);
+    float *psdBinReducedArr = (float *)malloc (sizeof (float) * segments);
     for (int i = 0; i < freqLen; i++)
     {
       psdBinReducedMean[i] = 0.0f;
     }
     for (int i = 0; i < freqLen; i++)
     {
+        MS2PSD_KAHAN_INIT(sum);
       for (int j = 0; j < segments; j++)
       {
         int psdBinReducedIndex = j * freqLen + i;
-        psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
+        MS2PSD_KAHAN_SUM_STEP(psdBinReduced[psdBinReducedIndex], sum);
+        //psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
         psdBinReducedArr[j] = psdBinReduced[psdBinReducedIndex];
       }
       qsort (psdBinReducedArr, segments, sizeof (psdBinReducedArr[0]), compare);
       psdBinReducedMin[i]    = psdBinReducedArr[0];
       psdBinReducedMax[i]    = psdBinReducedArr[segments - 1];
       psdBinReducedMedian[i] = (segments % 2 == 0) ? ((psdBinReducedArr[segments / 2 - 1] + psdBinReducedArr[segments / 2]) / 2.0) : (psdBinReducedArr[segments / 2]);
-      psdBinReducedMean[i] /= (double)segments;
 
-      psdBinReducedMean[i]   = decibel (psdBinReducedMean[i]);
-      psdBinReducedMin[i]    = decibel (psdBinReducedMin[i]);
-      psdBinReducedMax[i]    = decibel (psdBinReducedMax[i]);
-      psdBinReducedMedian[i] = decibel (psdBinReducedMedian[i]);
+      psdBinReducedMean[i] = sum;
+      psdBinReducedMean[i] /= (float)segments;
+
+      psdBinReducedMean[i]   = decibelf (psdBinReducedMean[i]);
+      psdBinReducedMin[i]    = decibelf (psdBinReducedMin[i]);
+      psdBinReducedMax[i]    = decibelf (psdBinReducedMax[i]);
+      psdBinReducedMedian[i] = decibelf (psdBinReducedMedian[i]);
     }
 
     /* Aggerate all reduced sample PSD */
