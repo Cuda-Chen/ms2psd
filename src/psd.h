@@ -4,6 +4,6 @@
 #include <complex.h>
 
 void calculatePSD (float complex *in, int num_samples,
-                   double sampling_rate, double *psd);
+                   double sampling_rate, float *psd);
 
 #endif

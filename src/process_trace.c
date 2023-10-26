@@ -197,10 +197,9 @@ processTrace (const char *mseedfile,
     return -1;
   }
   float *taperedSignal      = (float *)malloc (sizeof (float) * desiredSamples);
-  double *tapered           = (double *)malloc (sizeof (double) * desiredSamples);
   float complex *fftResult = (float complex *)malloc (sizeof (float complex) * desiredSamples);
   /* Cosine taper window */
-  double *taper_window = (double *)malloc (sizeof (double) * desiredSamples);
+  float *taper_window = (double *)malloc (sizeof (double) * desiredSamples);
   if (taper_window == NULL)
   {
     fprintf (stderr, "taper window allocation failed\n");
@@ -210,7 +209,7 @@ processTrace (const char *mseedfile,
     taper_window[i] = 0.0f;
   sacCosineTaper (freq, desiredSamples, f1, f2, f3, f4, sampleRate, taper_window);
   /* PSD array of each 15-minute long segment */
-  double *psd = (double *)malloc (sizeof (double) * desiredSamples);
+  float *psd = (float *)malloc (sizeof (float) * desiredSamples);
   if (psd == NULL)
   {
     fprintf (stderr, "cannot allocate PSD space\n");
@@ -588,7 +587,6 @@ processTrace (const char *mseedfile,
   free (data);
   free (detrended);
   free (taperedSignal);
-  free (tapered);
   free (fftResult);
   free (taper_window);
   free (psd);

@@ -47,14 +47,14 @@ cosineTaper (float *data, int n, float alpha, float *tapered)
  * That is, the output taper window consists of two cosine taper windows.
  */
 void
-sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, double *taper)
+sacCosineTaper (double *freqs, int n, float f1, float f2, float f3, float f4, double sampling_rate, float *taper)
 {
   int i;
 
   /* Set taper window */
   for (i = 0; i < n / 2 + 1; i++)
   {
-    double temp = freqs[i];
+    float temp = (float)freqs[i];
 
     /* Case 1 */
     if ((f1 <= temp) && (temp <= f2))
