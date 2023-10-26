@@ -72,6 +72,12 @@ binLocation (const double v, double start)
   return (int)(fabs (round (v)) - fabs (start));
 }
 
+static int
+binLocationf (const float v, float start)
+{
+  return (int)(fabs (round (v)) - fabs (start));
+}
+
 int
 getTraceProperties (const char *mseedfile, nstime_t *starttime, nstime_t *endtime, double *samplingRate, int *totalSegmentsOfOneHour)
 {
@@ -180,10 +186,10 @@ processTrace (const char *mseedfile,
   }
   /* PDF statistics */
   int psdBinWindowSize                 = sampleRate * lengthOfSegment;
-  double *psdBinReducedMeanAggerated   = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMinAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMaxAggerated    = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
-  double *psdBinReducedMedianAggerated = (double *)malloc (sizeof (double) * totalSegmentsOfOneHour * freqLen);
+  float *psdBinReducedMeanAggerated   = (float *)malloc (sizeof (float) * totalSegmentsOfOneHour * freqLen);
+  float *psdBinReducedMinAggerated    = (float *)malloc (sizeof (float) * totalSegmentsOfOneHour * freqLen);
+  float *psdBinReducedMaxAggerated    = (float *)malloc (sizeof (float) * totalSegmentsOfOneHour * freqLen);
+  float *psdBinReducedMedianAggerated = (float *)malloc (sizeof (float) * totalSegmentsOfOneHour * freqLen);
   double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
   /* PSD properties (min, max, mean, median) summary statistics for 15-minute long segment */
@@ -450,16 +456,11 @@ processTrace (const char *mseedfile,
     float *psdBinReducedArr = (float *)malloc (sizeof (float) * segments);
     for (int i = 0; i < freqLen; i++)
     {
-      psdBinReducedMean[i] = 0.0f;
-    }
-    for (int i = 0; i < freqLen; i++)
-    {
         MS2PSD_KAHAN_INIT(sum);
       for (int j = 0; j < segments; j++)
       {
         int psdBinReducedIndex = j * freqLen + i;
         MS2PSD_KAHAN_SUM_STEP(psdBinReduced[psdBinReducedIndex], sum);
-        //psdBinReducedMean[i] += psdBinReduced[psdBinReducedIndex];
         psdBinReducedArr[j] = psdBinReduced[psdBinReducedIndex];
       }
       qsort (psdBinReducedArr, segments, sizeof (psdBinReducedArr[0]), compare);
@@ -497,10 +498,10 @@ processTrace (const char *mseedfile,
 
   /* Calculate PDF (power density function) */
   int PDFBins       = abs (maxdB - mindB) + 1;
-  double *pdfMean   = (double *)malloc (sizeof (double) * PDFBins * freqLen);
-  double *pdfMin    = (double *)malloc (sizeof (double) * PDFBins * freqLen);
-  double *pdfMax    = (double *)malloc (sizeof (double) * PDFBins * freqLen);
-  double *pdfMedian = (double *)malloc (sizeof (double) * PDFBins * freqLen);
+  float *pdfMean   = (float *)malloc (sizeof (float) * PDFBins * freqLen);
+  float *pdfMin    = (float *)malloc (sizeof (float) * PDFBins * freqLen);
+  float *pdfMax    = (float *)malloc (sizeof (float) * PDFBins * freqLen);
+  float *pdfMedian = (float *)malloc (sizeof (float) * PDFBins * freqLen);
   for (int i = 0; i < PDFBins * freqLen; i++)
   {
     pdfMean[i]   = 0;
@@ -514,10 +515,10 @@ processTrace (const char *mseedfile,
     for (int j = 0; j < totalSegmentsOfOneHour; j++)
     {
       int idx = j * freqLen + i;
-      pdfMean[binLocation (psdBinReducedMeanAggerated[idx], maxdB) * freqLen + i]++;
-      pdfMin[binLocation (psdBinReducedMinAggerated[idx], maxdB) * freqLen + i]++;
-      pdfMax[binLocation (psdBinReducedMaxAggerated[idx], maxdB) * freqLen + i]++;
-      pdfMedian[binLocation (psdBinReducedMedianAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMean[binLocationf (psdBinReducedMeanAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMin[binLocationf (psdBinReducedMinAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMax[binLocationf (psdBinReducedMaxAggerated[idx], maxdB) * freqLen + i]++;
+      pdfMedian[binLocationf (psdBinReducedMedianAggerated[idx], maxdB) * freqLen + i]++;
     }
   }
   /* Calculate the PDF, i.e., probability */
