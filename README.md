@@ -38,6 +38,8 @@ $ ./ms2psd 0.002 0.005  48.0  50.0 foo.mseed bar.sacpz
     - [x] PDF plotting feature
         - [x] GMT w/ bash script
         - [x] Matplotlib
+- [ ] de-couple with FFTW (i.e., you can use other FFT libraries) (P1)
+- [ ] SIMD support
 - [ ] CUDA support
 - [ ] PDF file description
 - [ ] PDF file search utility for PDF aggregation
