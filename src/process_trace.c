@@ -51,6 +51,10 @@ decibel (const double a)
   return 10 * log10 (a);
 }
 
+static float decibelf(const float a) {
+    return 10.0f * log10f(a);
+}
+
 static int
 binLocation (const double v, double start)
 {
@@ -172,10 +176,10 @@ processTrace (const char *mseedfile,
   double *estimatedFreqs               = (double *)malloc (sizeof (double) * psdBinWindowSize);
   range (estimatedFreqs, sampleRate, psdBinWindowSize);
   /* PSD properties (min, max, mean, median) summary statistics for 15-minute long segment */
-  double *psdMin    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMax    = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMean   = (double *)malloc (sizeof (double) * psdBinWindowSize);
-  double *psdMedian = (double *)malloc (sizeof (double) * psdBinWindowSize);
+  float *psdMin    = (float *)malloc (sizeof (float) * psdBinWindowSize);
+  float *psdMax    = (float *)malloc (sizeof (float) * psdBinWindowSize);
+  float *psdMean   = (float *)malloc (sizeof (float) * psdBinWindowSize);
+  float *psdMedian = (float *)malloc (sizeof (float) * psdBinWindowSize);
   /* PSD properties (min, max, mean, median) summary statistics with dimension reduction for 1-hour long segment */
   double *psdBinReducedMean   = (double *)malloc (sizeof (double) * freqLen);
   double *psdBinReducedMin    = (double *)malloc (sizeof (double) * freqLen);
@@ -376,15 +380,20 @@ processTrace (const char *mseedfile,
     /* PSD summary of this 1-hour long segment */
     float *psdArr = (float *)malloc (sizeof (float) * segments); /* Temporary array for PSD summary sorting */
     for (int i = 0; i < psdBinWindowSize; i++)
-      psdMean[i] = 0.0f;
-    for (int i = 0; i < psdBinWindowSize; i++)
     {
+        float sum = 0.0f; 
+        float c = 0.0f;
       for (int j = 0; j < segments; j++)
       {
         int psdBinIndex = j * psdBinWindowSize + i;
-        *(psdMean + i) += *(psdBin + psdBinIndex);
+          float y = *(psdBin + psdBinIndex) - c;
+          volatile t = sum + y;
+          volatile z = t - sum;
+          c = z - y;
+          sum = t;
         *(psdArr + j) = *(psdBin + psdBinIndex);
       }
+      *(psdMean + i) = sum;
 
       qsort (psdArr, segments, sizeof (psdArr[0]), compare);
       psdMin[i]    = psdArr[0];
@@ -393,15 +402,15 @@ processTrace (const char *mseedfile,
     }
     /* Mean calculation */
     for (int i = 0; i < psdBinWindowSize; i++)
-      psdMean[i] /= (double)segments;
+      psdMean[i] /= (float)segments;
 
     /* Set unit to decibel (dB) */
     for (int i = 0; i < psdBinWindowSize; i++)
     {
-      psdMin[i]    = decibel (psdMin[i]);
-      psdMax[i]    = decibel (psdMax[i]);
-      psdMean[i]   = decibel (psdMean[i]);
-      psdMedian[i] = decibel (psdMedian[i]);
+      psdMin[i]    = decibelf (psdMin[i]);
+      psdMax[i]    = decibelf (psdMax[i]);
+      psdMean[i]   = decibelf (psdMean[i]);
+      psdMedian[i] = decibelf (psdMedian[i]);
       //psdBin[i] = decibel(psdBin[i]);
     }
 
