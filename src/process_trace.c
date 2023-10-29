@@ -49,27 +49,13 @@ int maxdB = -50;
 static int
 compare (const void *a, const void *b)
 {
-  const double *da = (const double *)a;
-  const double *db = (const double *)b;
+  const float *da = (const float *)a;
+  const float *db = (const float *)b;
   return (*da > *db) - (*da < *db);
-}
-
-static double
-decibel (const double a)
-{
-  /*if(a <= 0)
-      return 0.0;*/
-  return 10 * log10 (a);
 }
 
 static float decibelf(const float a) {
     return 10.0f * log10f(a);
-}
-
-static int
-binLocation (const double v, double start)
-{
-  return (int)(fabs (round (v)) - fabs (start));
 }
 
 static int
@@ -177,12 +163,12 @@ processTrace (const char *mseedfile,
     return -1;
   }
   /* Set center frequency (geometric mean of low and high frequency) */
-  double *centerPeriods = (double *)malloc (sizeof (double) * freqLen);
+  float *centerPeriods = (float *)malloc (sizeof (float) * freqLen);
   for (int i = 0; i < freqLen; i++)
   {
-    double ts        = 1. / leftFreqs[i];
-    double tl        = 1. / rightFreqs[i];
-    centerPeriods[i] = sqrt (ts * tl);
+    float ts        = 1. / leftFreqs[i];
+    float tl        = 1. / rightFreqs[i];
+    centerPeriods[i] = sqrtf (ts * tl);
   }
   /* PDF statistics */
   int psdBinWindowSize                 = sampleRate * lengthOfSegment;

@@ -29,7 +29,7 @@ resp: response file in SACPZ format
 ### Example
 
 ```
-$ ./ms2psd 0.002 0.005  48.0  50.0 foo.mseed bar.sacpz
+$ ./ms2psd 0.002 0.005  48.0 50.0 2 foo.mseed bar.sacpz
 ```
 
 ## TO-DO
